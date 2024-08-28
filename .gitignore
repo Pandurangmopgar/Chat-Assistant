@@ -1,4 +1,9 @@
-# Logs
+
+
+
+
+
+	# Logs
 logs
 *.log
 npm-debug.log*
@@ -27,3 +32,18 @@ src/assets/
 
 # Ignore vector-store-backend directory
 vector-store-backend/
+# Ignore assets directory
+src/assets/
+
+# Ignore vector-store-backend directory
+vector-store-backend/
+
+# Ignore node modules
+node_modules/
+
+# Ignore build files
+dist/
+build/
+
+# Ignore environment files
+.env
