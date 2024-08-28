@@ -93,7 +93,7 @@ const getUserInitials = () => {
                <div className="user-message-container">
   <div className="user-message">
     <div className="user-avatar">
-    {user?.firstName?.[0] || "U"}
+      {(user?.firstName?.[0] || "") + (user?.surname?.[0] || "") || "U"}
     </div>
     <div className="message-text">{exchange.input}</div>
   </div>
