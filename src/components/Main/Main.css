@@ -3,17 +3,23 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  background-color: white;
 }
 
 .top-bar {
-  width: 100%;
-  position: absolute;
-  top: 1rem;
-  left: 2rem;
-  right: 2rem;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  padding: 10px 20px;
+}
+
+.left-section {
+  display: flex;
+  align-items: center;
+}
+
+.assistant-label {
+  margin-right: 10px;
 }
 
 .user-auth {
@@ -28,9 +34,10 @@
   flex-grow: 1;
   overflow-y: auto;
   padding: 20px;
-  padding-bottom: 120px; /* Increase this value to match your search box height */
+  padding-bottom: 140px; /* Increase this value to create more space for the search box */
   display: flex;
   flex-direction: column;
+  
 }
 
 .greet {
@@ -72,7 +79,7 @@
 }
 
 .card {
-  background-color: #1e1e1e;
+  background-color: #3e3636;
   border-radius: 8px;
   padding: 20px;
   display: flex;
@@ -386,4 +393,81 @@
 .uploaded-document svg {
   width: 16px;
   height: 16px;
+}
+
+/* Adjust the padding of the conversation container */
+.conversation-container {
+  padding-bottom: 160px; /* Increase this value to match the search box height plus some extra space */
+}
+
+/* Ensure the last message is fully visible */
+.exchange:last-child {
+  margin-bottom: 20px;
+}
+
+/* Dark mode styles */
+.main.dark-mode {
+  background-color: #1e1e1e;
+  color: #f0f0f0;
+}
+
+.dark-mode .top-bar {
+  background-color: #2a2a2a;
+}
+
+.dark-mode .card {
+  background-color: #2a2a2a;
+  color: #f0f0f0;
+}
+
+.dark-mode .search-card {
+  background-color: #2a2a2a;
+}
+
+.dark-mode .search-box-input textarea {
+  background-color: #333;
+  color: #f0f0f0;
+  border-color: #444;
+}
+
+.dark-mode-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 5px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.dark-mode-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dark-mode .dark-mode-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Add smooth transitions */
+.main, .top-bar, .card, .search-card, .search-box-input textarea {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark-mode .main {
+  background-color: #1e1e1e;
+  color: #f0f0f0;
+}
+
+.dark-mode .top-bar {
+  background-color: #2a2a2a;
+}
+
+.dark-mode .search-card {
+  background-color: #2a2a2a;
+}
+
+.dark-mode .search-box-input textarea {
+  background-color: #333;
+  color: #f0f0f0;
+  border-color: #444;
 }

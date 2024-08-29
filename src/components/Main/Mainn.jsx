@@ -1,8 +1,8 @@
-import React, { useRef, useContext } from 'react';
+import React, { useContext, useRef } from 'react';
 import './Main.css';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { assets } from '../../assets/assets';
-import { FiFile } from 'react-icons/fi';
+import { FiMoon, FiSun, FiFile } from 'react-icons/fi'; // Add FiMoon and FiSun
 import { Context } from '../../context/Context';
 import { useUser } from '@clerk/clerk-react';
 
@@ -15,7 +15,9 @@ const Mainn = () => {
     showInitialContent, 
     onSent, 
     uploadDocument, 
-    uploadedDocumentName 
+    uploadedDocumentName,
+    darkMode,
+    setDarkMode
   } = useContext(Context);
   const { user } = useUser();
   const fileInputRef = useRef(null);
@@ -62,10 +64,29 @@ const Mainn = () => {
     }
   };
 
+  // Add this useEffect to scroll to the bottom when conversation updates
+  React.useEffect(() => {
+    if (conversationEndRef.current) {
+      conversationEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [conversation]);
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
   return (
-    <div className='main'>
+    <div className={`main ${darkMode ? 'dark-mode' : ''}`}>
       <div className='top-bar'>
-        <p className='assistant-label'>Assistant</p>
+        <div className='left-section'>
+          <p className='assistant-label'>Assistant</p>
+          <button 
+            className="dark-mode-toggle" 
+            onClick={() => setDarkMode(!darkMode)}
+          >
+            {darkMode ? <FiSun /> : <FiMoon />}
+          </button>
+        </div>
         <div className='user-auth'>
           <SignedIn>
             <UserButton showName />

@@ -1,5 +1,6 @@
-import React, { createContext, useState, useCallback } from "react";
+import React, { createContext, useState, useCallback, useEffect } from "react";
 import run from "../config/gemini.js"; // Make sure this path is correct
+// import { useState, useEffect } from 'react';
 
 export const Context = createContext();
 
@@ -10,6 +11,15 @@ export const ContextProvider = ({ children }) => {
     const [showInitialContent, setShowInitialContent] = useState(true);
     const [documentUploaded, setDocumentUploaded] = useState(false);
     const [uploadedDocumentName, setUploadedDocumentName] = useState(""); // Add this line
+    const [darkMode, setDarkMode] = useState(false);
+
+    useEffect(() => {
+        if (darkMode) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+    }, [darkMode]);
 
     const formatResponse = (response) => {
         let parts = response.split(/(\*\*)/);
@@ -120,7 +130,9 @@ export const ContextProvider = ({ children }) => {
         uploadDocument,
         documentUploaded,
         uploadedDocumentName,
-        setUploadedDocumentName
+        setUploadedDocumentName,
+        darkMode,
+        setDarkMode
     };
 
     return (
