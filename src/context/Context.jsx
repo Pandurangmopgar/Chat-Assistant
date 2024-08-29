@@ -9,6 +9,7 @@ export const ContextProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [showInitialContent, setShowInitialContent] = useState(true);
     const [documentUploaded, setDocumentUploaded] = useState(false);
+    const [uploadedDocumentName, setUploadedDocumentName] = useState(""); // Add this line
 
     const formatResponse = (response) => {
         let parts = response.split(/(\*\*)/);
