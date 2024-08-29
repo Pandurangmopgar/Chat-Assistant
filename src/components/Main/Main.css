@@ -167,6 +167,7 @@
   flex-grow: 1; /* Allow text to take up available space */
   margin-right: 15px; /* Add some space between text and icon */
   color: #ffffff;
+  padding-left: 15px; /* Add this line to move text to the right */
 }
 
 .card-icon {
