@@ -4,6 +4,7 @@
   height: 100vh;
   overflow: hidden;
   background-color: white;
+  width: 100%; /* Add this line to ensure full width */
 }
 
 .top-bar {
@@ -11,6 +12,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 20px;
+  background-color: inherit; /* This will make it inherit from .main */
 }
 
 .left-section {
@@ -19,7 +21,9 @@
 }
 
 .assistant-label {
-  margin-right: 10px;
+  font-size: 1.5rem; /* Increase font size */
+  color: white; /* Change text color to white */
+  font-weight: bold; /* Optional: make the text bold */
 }
 
 .user-auth {
@@ -37,7 +41,9 @@
   padding-bottom: 140px; /* Increase this value to create more space for the search box */
   display: flex;
   flex-direction: column;
-  
+  max-width: 1200px; /* Add this line to limit content width */
+  margin: 0 auto; /* Add this line to center the content */
+  width: 100%; /* Add this line to ensure full width within max-width */
 }
 
 .greet {
@@ -314,7 +320,7 @@
 }
 
 .assistant-message {
-  background-color: #1e1e1e;
+  background-color: #2a2a2a;
   color: white;
   padding: 16px 20px;
 }
@@ -411,8 +417,13 @@
   color: #f0f0f0;
 }
 
+.dark-mode .main {
+  background-color: #1e1e1e;
+  color: #f0f0f0;
+}
+
 .dark-mode .top-bar {
-  background-color: #2a2a2a;
+  background-color: inherit; /* This will make it inherit from .main in dark mode */
 }
 
 .dark-mode .card {
@@ -459,7 +470,7 @@
 }
 
 .dark-mode .top-bar {
-  background-color: #2a2a2a;
+  background-color: inherit; /* This will make it inherit from .main in dark mode */
 }
 
 .dark-mode .search-card {
@@ -470,4 +481,8 @@
   background-color: #333;
   color: #f0f0f0;
   border-color: #444;
+}
+
+.dark-mode .assistant-label {
+  color: white; /* Ensure it's white in dark mode too */
 }

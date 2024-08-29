@@ -1,7 +1,8 @@
 .sidebar {
     display: flex;
     flex-direction: column;
-    background-color: #f0f0f0; /* Light grey background */
+    background-color: #2a2a2a; /* Slightly lighter than the main background in dark mode */
+    color: #ffffff; /* White text color for better visibility */
     width: 260px;
     height: 100vh;
     transition: width 0.3s ease, background-color 0.3s ease;
@@ -57,7 +58,7 @@
 }
 
 .dark-mode .recent-entry:hover {
-    background-color: #2a2a2a; /* Darker hover color for dark mode */
+    background-color: #dfcccc; /* Darker hover color for dark mode */
 }
 
 .bottom {
@@ -71,11 +72,13 @@
 .sidebar img {
     width: 20px;
     height: 20px;
+    filter: invert(1); /* This will make dark icons appear light */
 }
 
 .sidebar p {
     margin: 0;
     font-size: 14px;
+    color: #ffffff; /* Ensure all text in sidebar is white */
 }
 
 .collapsed .new-chat p,
@@ -92,7 +95,7 @@
 }
 
 .dark-mode .sidebar {
-    background-color: #1e1e1e; /* Dark background for dark mode */
+    background-color:  #2a2a2a; /* Dark background for dark mode */
     color: #f0f0f0;
 }
 
