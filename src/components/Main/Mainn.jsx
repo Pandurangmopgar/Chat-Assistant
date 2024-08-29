@@ -80,22 +80,24 @@ const Mainn = () => {
       <div className='top-bar'>
         <div className='left-section'>
           <p className='assistant-label'>Assistant</p>
+        </div>
+        <div className='right-section'>
           <button 
             className="dark-mode-toggle" 
             onClick={() => setDarkMode(!darkMode)}
           >
             {darkMode ? <FiSun /> : <FiMoon />}
           </button>
-        </div>
-        <div className='user-auth'>
-          <SignedIn>
-            <UserButton showName />
-          </SignedIn>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button className="sign-in-button">Sign In</button>
-            </SignInButton>
-          </SignedOut>
+          <div className='user-auth'>
+            <SignedIn>
+              <UserButton showName />
+            </SignedIn>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="sign-in-button">Sign In</button>
+              </SignInButton>
+            </SignedOut>
+          </div>
         </div>
       </div>
       <div className="main-content">
