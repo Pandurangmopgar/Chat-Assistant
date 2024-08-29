@@ -52,6 +52,7 @@ export const ContextProvider = ({ children }) => {
             }
 
             setDocumentUploaded(true);
+            setUploadedDocumentName(file.name); // Set the uploaded document name
         } catch (error) {
             console.error('Error uploading document:', error);
             throw error;
@@ -116,7 +117,9 @@ export const ContextProvider = ({ children }) => {
         onSent,
         startNewChat,
         uploadDocument,
-        documentUploaded
+        documentUploaded,
+        uploadedDocumentName,
+        setUploadedDocumentName
     };
 
     return (

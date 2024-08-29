@@ -1,4 +1,4 @@
-import React, { useContext, useRef } from 'react';
+import React, { useRef, useContext } from 'react';
 import './Main.css';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { assets } from '../../assets/assets';
@@ -7,10 +7,19 @@ import { Context } from '../../context/Context';
 import { useUser } from '@clerk/clerk-react';
 
 const Mainn = () => {
-  const { input, setInput, conversation, loading, showInitialContent, onSent, uploadDocument } = useContext(Context);
+  const { 
+    input, 
+    setInput, 
+    conversation, 
+    loading, 
+    showInitialContent, 
+    onSent, 
+    uploadDocument, 
+    uploadedDocumentName 
+  } = useContext(Context);
   const { user } = useUser();
   const fileInputRef = useRef(null);
-
+  const conversationEndRef = useRef(null);
 
   const cardData = [
     { text: "Suggest beautiful places to see on an upcoming road trip", icon: "compass" },
@@ -26,7 +35,7 @@ const Mainn = () => {
     }
   };
 
-const getUserInitials = () => {
+  const getUserInitials = () => {
     if (user?.firstName && user?.lastName) {
       return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
     } else if (user?.firstName) {
@@ -87,29 +96,31 @@ const getUserInitials = () => {
             </div>
           </>
         ) : (
-          <div className="conversation">
-            {conversation.map((exchange, index) => (
-              <div key={index} className="exchange">
-               <div className="user-message-container">
-  <div className="user-message">
-    <div className="user-avatar">
-    {user?.firstName?.[0] || "U"}
-    </div>
-    <div className="message-text">{exchange.input}</div>
-  </div>
-
-                </div>
-                {exchange.response && (
-                  <div className="assistant-message-container">
-                    <div 
-                      className="assistant-message"
-                      dangerouslySetInnerHTML={{ __html: exchange.response }}
-                    />
+          <div className="conversation-wrapper">
+            <div className="conversation">
+              {conversation.map((exchange, index) => (
+                <div key={index} className="exchange">
+                  <div className="user-message-container">
+                    <div className="user-message">
+                      <div className="user-avatar">
+                        {getUserInitials()}
+                      </div>
+                      <div className="message-text">{exchange.input}</div>
+                    </div>
                   </div>
-                )}
-              </div>
-            ))}
-            {loading && <div className="loading">Loading...</div>}
+                  {exchange.response && (
+                    <div className="assistant-message-container">
+                      <div 
+                        className="assistant-message"
+                        dangerouslySetInnerHTML={{ __html: exchange.response }}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+              {loading && <div className="loading">Loading...</div>}
+              <div ref={conversationEndRef} />
+            </div>
           </div>
         )}
       </div>
@@ -141,6 +152,11 @@ const getUserInitials = () => {
             </button>
           </div>
         </form>
+        {uploadedDocumentName && (
+          <div className="uploaded-document">
+            <FiFile /> {uploadedDocumentName}
+          </div>
+        )}
       </div>
     </div>
   );

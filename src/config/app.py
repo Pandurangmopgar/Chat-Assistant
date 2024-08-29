@@ -8,11 +8,26 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGener
 from langchain.chains.question_answering import load_qa_chain
 from flask_cors import CORS
 import tempfile
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import redis
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 CORS(app)
+
+# Add rate limiting
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]
+)
+
+# Use Redis for caching
+redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 # Global variables
 vectorstore = None
@@ -39,6 +54,7 @@ def create_vectorstore(chunks):
     return vectorstore
 
 @app.route('/upload', methods=['POST'])
+@limiter.limit("10 per hour")
 def upload_file():
     global vectorstore, qa_chain
     if 'file' not in request.files:
@@ -59,15 +75,25 @@ def upload_file():
         return jsonify({"error": "Invalid file format"}), 400
 
 @app.route('/query', methods=['POST'])
+@limiter.limit("100 per minute")
 def query():
     global vectorstore, qa_chain
     if not vectorstore or not qa_chain:
         return jsonify({"error": "No document uploaded yet"}), 400
     
     user_question = request.json['question']
+    
+    # Check cache first
+    cached_response = redis_client.get(user_question)
+    if cached_response:
+        return jsonify({"response": cached_response.decode('utf-8')}), 200
+    
     docs = vectorstore.similarity_search(user_question)
     response = qa_chain.run(input_documents=docs, question=user_question)
-    return jsonify({"response": response}), 200
+    
+    # Cache the response
+    redis_client.setex(user_question, 3600, response)  # Cache for 1 hour
+    
+    return jsonify({"response": response}), 
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+
