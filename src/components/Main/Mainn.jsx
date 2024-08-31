@@ -168,7 +168,7 @@ const Mainn = () => {
           </div>
           <div className="search-box-buttons">
             <button type="button" className="image-upload-btn" onClick={() => imageInputRef.current.click()}>
-              <FiImage />
+             <img src={assets.gallery_icon} alt="Image" />
             </button>
             <input 
               type="file" 

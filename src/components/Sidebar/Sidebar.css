@@ -1,11 +1,11 @@
 .sidebar {
     display: flex;
     flex-direction: column;
-    background-color: #2a2a2a; /* Slightly lighter than the main background in dark mode */
-    color: #ffffff; /* White text color for better visibility */
+    background-color: #f0f4f9; /* Slightly lighter than the main background in dark mode */
+    color: #333333; /* Changed to dark color for light mode */
     width: 260px;
     height: 100vh;
-    transition: width 0.3s ease, background-color 0.3s ease;
+    transition: width 0.3s ease, background-color 0.3s ease, color 0.3s ease;
 }
 
 .sidebar.collapsed {
@@ -41,7 +41,7 @@
 
 .recent-title {
     font-size: 12px;
-    color: #333; /* Darker color for better readability on grey background */
+    color: #333333; /* Ensure this is dark in light mode */
     margin-bottom: 10px;
 }
 
@@ -72,13 +72,13 @@
 .sidebar img {
     width: 20px;
     height: 20px;
-    filter: invert(1); /* This will make dark icons appear light */
+    filter: none; /* Remove invert filter for light mode */
 }
 
 .sidebar p {
     margin: 0;
     font-size: 14px;
-    color: #ffffff; /* Ensure all text in sidebar is white */
+    color: #333333; /* Changed to dark color for light mode */
 }
 
 .collapsed .new-chat p,
@@ -95,13 +95,13 @@
 }
 
 .dark-mode .sidebar {
-    background-color:  #2a2a2a; /* Dark background for dark mode */
+    background-color: #2a2a2a; /* Dark background for dark mode */
     color: #f0f0f0;
 }
 
 .dark-mode .sidebar p,
 .dark-mode .recent-title {
-    color: #f0f0f0; /* Light text color for dark mode */
+    color: #f0f0f0; /* Keep light text color for dark mode */
 }
 
 .new-chat {
@@ -114,7 +114,7 @@
 }
 
 .dark-mode .sidebar img {
-    filter: invert(1); /* Invert icon colors in dark mode */
+    filter: invert(1); /* Keep invert for dark mode */
 }
 
 /* Dark mode styles for sidebar */
@@ -132,6 +132,6 @@
 }
 
 /* Add smooth transitions */
-.sidebar, .sidebar .new-chat, .sidebar .recent-entry {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+.sidebar, .sidebar .new-chat, .sidebar .recent-entry, .sidebar p, .sidebar img {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, filter 0.3s ease;
 }
