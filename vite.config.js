@@ -19,6 +19,11 @@ export default defineConfig({
       '/upload': {
         target: 'http://localhost:5001',
         changeOrigin: true,
+      },
+      '/process-image': {
+        target: 'http://localhost:5002',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/process-image/, '/process_image')
       }
     }
   }

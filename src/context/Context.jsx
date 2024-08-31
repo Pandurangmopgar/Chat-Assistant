@@ -1,6 +1,7 @@
 import React, { createContext, useState, useCallback, useEffect } from "react";
 import run from "../config/gemini.js"; // Make sure this path is correct
 // import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export const Context = createContext();
 
@@ -12,6 +13,7 @@ export const ContextProvider = ({ children }) => {
     const [documentUploaded, setDocumentUploaded] = useState(false);
     const [uploadedDocumentName, setUploadedDocumentName] = useState(""); // Add this line
     const [darkMode, setDarkMode] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
 
     useEffect(() => {
         if (darkMode) {
@@ -70,6 +72,31 @@ export const ContextProvider = ({ children }) => {
         }
     };
 
+    const uploadImage = (file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setSelectedImage(e.target.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const processImageWithPrompt = async (prompt) => {
+        if (!selectedImage) {
+            throw new Error('No image selected');
+        }
+
+        try {
+            const response = await axios.post('http://localhost:5002/process_image', {
+                image: selectedImage,
+                prompt: prompt
+            });
+            return response.data.response;
+        } catch (error) {
+            console.error('Error processing image:', error);
+            throw error;
+        }
+    };
+
     const onSent = useCallback(async () => {
         if (input.trim()) {
             setLoading(true);
@@ -78,7 +105,9 @@ export const ContextProvider = ({ children }) => {
             
             try {
                 let response;
-                if (documentUploaded) {
+                if (selectedImage) {
+                    response = await processImageWithPrompt(input.trim());
+                } else if (documentUploaded) {
                     response = await fetch('http://localhost:5001/query', {
                         method: 'POST',
                         headers: {
@@ -107,9 +136,10 @@ export const ContextProvider = ({ children }) => {
             } finally {
                 setLoading(false);
                 setInput(""); // Clear input after sending
+                setSelectedImage(null);
             }
         }
-    }, [input, documentUploaded]);
+    }, [input, documentUploaded, selectedImage]);
 
     const startNewChat = useCallback(() => {
         setConversation([]);
@@ -132,7 +162,9 @@ export const ContextProvider = ({ children }) => {
         uploadedDocumentName,
         setUploadedDocumentName,
         darkMode,
-        setDarkMode
+        setDarkMode,
+        uploadImage,
+        selectedImage
     };
 
     return (

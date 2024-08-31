@@ -2,7 +2,7 @@ import React, { useContext, useRef } from 'react';
 import './Main.css';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { assets } from '../../assets/assets';
-import { FiMoon, FiSun, FiFile } from 'react-icons/fi'; // Add FiMoon and FiSun
+import { FiMoon, FiSun, FiFile, FiImage } from 'react-icons/fi'; // Add FiMoon and FiSun
 import { Context } from '../../context/Context';
 import { useUser } from '@clerk/clerk-react';
 
@@ -17,11 +17,14 @@ const Mainn = () => {
     uploadDocument, 
     uploadedDocumentName,
     darkMode,
-    setDarkMode
+    setDarkMode,
+    selectedImage,
+    uploadImage // Add this line
   } = useContext(Context);
   const { user } = useUser();
   const fileInputRef = useRef(null);
   const conversationEndRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   const cardData = [
     { text: "Suggest beautiful places to see on an upcoming road trip", icon: "compass" },
@@ -61,6 +64,13 @@ const Mainn = () => {
         console.error('Error uploading file:', error);
         // Handle error (e.g., show an error message to the user)
       }
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      uploadImage(file);
     }
   };
 
@@ -157,9 +167,16 @@ const Mainn = () => {
             ></textarea>
           </div>
           <div className="search-box-buttons">
-            <button type="button" className="image-upload-btn">
-              <img src={assets.gallery_icon} alt="Upload image" />
+            <button type="button" className="image-upload-btn" onClick={() => imageInputRef.current.click()}>
+              <FiImage />
             </button>
+            <input 
+              type="file" 
+              ref={imageInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleImageUpload}
+              accept="image/*"
+            />
             <button type="button" className="document-upload-btn" onClick={() => fileInputRef.current.click()}>
               <FiFile />
             </button>
@@ -178,6 +195,11 @@ const Mainn = () => {
         {uploadedDocumentName && (
           <div className="uploaded-document">
             <FiFile /> {uploadedDocumentName}
+          </div>
+        )}
+        {selectedImage && (
+          <div className="selected-image">
+            <img src={selectedImage} alt="Selected" style={{ maxWidth: '100px', maxHeight: '100px' }} />
           </div>
         )}
       </div>
