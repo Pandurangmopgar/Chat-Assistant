@@ -1,9 +1,8 @@
 import React, { createContext, useState, useCallback, useEffect } from "react";
 import run from "../config/gemini.js"; // Make sure this path is correct
-// import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-export const Context = createContext();
+export const Context = createContext(); // Ensure this line is uncommented
 
 export const ContextProvider = ({ children }) => {
     const [input, setInput] = useState("");
@@ -24,29 +23,47 @@ export const ContextProvider = ({ children }) => {
     }, [darkMode]);
 
     const formatResponse = (response) => {
-        let parts = response.split(/(\*\*)/);
+        // Split the response by new lines to handle line breaks
+        let parts = response.split('\n');
         let formattedResponse = "";
-        let isBold = false;
-        let isNewLine = true;
 
-        for (let i = 0; i < parts.length; i++) {
-            if (parts[i] === '**') {
-                isBold = !isBold;
-                if (isBold) {
-                    formattedResponse += isNewLine ? '<b>' : '<br><b>';
-                    isNewLine = false;
-                } else {
-                    formattedResponse += '</b>: ';
-                }
-            } else {
-                if (isBold) {
-                    formattedResponse += parts[i];
-                } else {
-                    formattedResponse += parts[i];
-                    isNewLine = true;
-                }
+        parts.forEach((part, index) => {
+            // Handle headers
+            if (part.startsWith("## ")) {
+                part = `<h2>${part.substring(3)}</h2>`;
+            } else if (part.startsWith("# ")) {
+                part = `<h1>${part.substring(2)}</h1>`;
+            } else if (part.startsWith("### ")) {
+                part = `<h3>${part.substring(4)}</h3>`;
+            } else if (part.startsWith("#### ")) {
+                part = `<h4>${part.substring(5)}</h4>`;
+            } else if (part.startsWith("##### ")) {
+                part = `<h5>${part.substring(6)}</h5>`;
+            } else if (part.startsWith("###### ")) {
+                part = `<h6>${part.substring(7)}</h6>`;
             }
-        }
+
+            // Move content after start to the next line and make it bold
+            if (part.match(/^[A-Za-z ]+:$/)) {
+                part = `<br><b>${part}</b>`;
+            }
+
+            // Handle bold and italic formatting
+            part = part.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>'); // Bold
+            part = part.replace(/\*(.*?)\*/g, '<i>$1</i>'); // Italic
+
+            // Remove asterisks
+            part = part.replace(/\*/g, '');
+
+            // Add the formatted part to the response
+            formattedResponse += part;
+
+            // Add a line break if it's not the last part
+            if (index < parts.length - 1) {
+                formattedResponse += '<br>';
+            }
+        });
+
         return formattedResponse;
     };
 

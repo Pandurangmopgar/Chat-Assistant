@@ -1,99 +1,71 @@
+import requests
+
+url = "https://nxp9w8geak.execute-api.us-east-1.amazonaws.com/Prod"
+
+# Open the image file in binary mode
+files = {'image': ('mg_4950.jpg', open(r'C:\Users\admin\Downloads\mg_4950.jpg', 'rb'), 'image/jpeg')}
+
+# Send the POST request
+response = requests.post(url, files=files)
+
+# Check the response
+print(response.status_code)
+print(response.json())
+import json
+import base64
 import os
 from dotenv import load_dotenv
-from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
+from PIL import Image
+import google.generativeai as genai
 from flask import Flask, request, jsonify
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain.chains.question_answering import load_qa_chain
 from flask_cors import CORS
-import tempfile
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-import redis
-from werkzeug.middleware.proxy_fix import ProxyFix
+import io
 
+# Load environment variables
 load_dotenv()
 
+# Configure generative AI model
+genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+
 app = Flask(__name__)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 CORS(app)
 
-# Add rate limiting
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"]
-)
+def get_gemini_response(input_prompt, image):
+    response = model.generate_content([input_prompt, image])
+    return response.text
 
-# Use Redis for caching
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
-
-# Global variables
-vectorstore = None
-qa_chain = None
-
-def process_pdf(pdf_file):
-    text = ""
-    pdf_reader = PdfReader(pdf_file)
-    for page in pdf_reader.pages:
-        text += page.extract_text()
-    
-    text_splitter = CharacterTextSplitter(
-        separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
-        length_function=len
-    )
-    chunks = text_splitter.split_text(text)
-    return chunks
-
-def create_vectorstore(chunks):
-    embeddings = GoogleGenerativeAIEmbeddings(model='models/embedding-001')
-    vectorstore = FAISS.from_texts(texts=chunks, embedding=embeddings)
-    return vectorstore
-
-@app.route('/upload', methods=['POST'])
-@limiter.limit("10 per hour")
-def upload_file():
-    global vectorstore, qa_chain
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-    if file and file.filename.endswith('.pdf'):
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            file.save(temp_file.name)
-            chunks = process_pdf(temp_file.name)
-        os.unlink(temp_file.name)
-        vectorstore = create_vectorstore(chunks)
-        model = ChatGoogleGenerativeAI(model='gemini-1.5-flash', temperature=0.3)
-        qa_chain = load_qa_chain(model, chain_type="stuff")
-        return jsonify({"message": "File processed successfully"}), 200
+@app.route('/process_image', methods=['POST'])
+def process_image():
+    if request.is_json:
+        data = request.json
     else:
-        return jsonify({"error": "Invalid file format"}), 400
+        # For Lambda, parse the event body
+        data = json.loads(request.get_data())
+    
+    image_data = base64.b64decode(data['image'].split(',')[1])
+    image = Image.open(io.BytesIO(image_data))
+    
+    prompt = data['prompt']
+    
+    response = get_gemini_response(prompt, image)
+    return jsonify({'response': response})
 
-@app.route('/query', methods=['POST'])
-@limiter.limit("100 per minute")
-def query():
-    global vectorstore, qa_chain
-    if not vectorstore or not qa_chain:
-        return jsonify({"error": "No document uploaded yet"}), 400
+def lambda_handler(event, context):
+    # Simulate a Flask request for Lambda
+    with app.test_request_context(
+        path='/process_image',
+        method='POST',
+        data=json.dumps(json.loads(event['body'])),
+        headers={'Content-Type': 'application/json'}
+    ):
+        response = app.full_dispatch_request()
     
-    user_question = request.json['question']
-    
-    # Check cache first
-    cached_response = redis_client.get(user_question)
-    if cached_response:
-        return jsonify({"response": cached_response.decode('utf-8')}), 200
-    
-    docs = vectorstore.similarity_search(user_question)
-    response = qa_chain.run(input_documents=docs, question=user_question)
-    
-    # Cache the response
-    redis_client.setex(user_question, 3600, response)  # Cache for 1 hour
-    
-    return jsonify({"response": response}), 
+    return {
+        'statusCode': response.status_code,
+        'body': response.get_data(as_text=True),
+        'headers': dict(response.headers)
+    }
 
-
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5002)
