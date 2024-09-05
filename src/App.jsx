@@ -5,6 +5,7 @@ import './App.css'
 import Sidebar from './components/Sidebar/Sidebar'
 import Mainn from './components/Main/Mainn'
 import { SpeedInsights } from '@vercel/speed-insights/react'
+import { Analytics } from "@vercel/analytics/react"
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <Sidebar />
       <Mainn />
       <SpeedInsights />
+      <Analytics />
     </>
   )
 }
