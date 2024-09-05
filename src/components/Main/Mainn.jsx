@@ -1,10 +1,9 @@
-import React, { useContext, useRef } from 'react';
+import React, { useContext, useRef, useEffect } from 'react';
 import './Main.css';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 import { assets } from '../../assets/assets';
-import { FiMoon, FiSun, FiFile, FiImage } from 'react-icons/fi'; // Add FiMoon and FiSun
+import { FiMoon, FiSun, FiFile, FiCalendar, FiShield, FiWifi, FiDollarSign } from 'react-icons/fi';
 import { Context } from '../../context/Context';
-import { useUser } from '@clerk/clerk-react';
 
 const Mainn = () => {
   const { 
@@ -19,19 +18,39 @@ const Mainn = () => {
     darkMode,
     setDarkMode,
     selectedImage,
-    uploadImage // Add this line
+    uploadImage,
+    registerUser  // Add this line to get registerUser from context
   } = useContext(Context);
-  const { user } = useUser();
+  const { user, isSignedIn } = useUser();
   const fileInputRef = useRef(null);
   const conversationEndRef = useRef(null);
   const imageInputRef = useRef(null);
 
   const cardData = [
-    { text: "Suggest beautiful places to see on an upcoming road trip", icon: "compass" },
-    { text: "Briefly summarize this concept: urban planning", icon: "bulb" },
-    { text: "Brainstorm team bonding activities for our work retreat", icon: "bulb" },
-    { text: "Improve the readability of the following code", icon: "code" },
+    { text: "What are the steps to apply for casual leave?", icon: <FiCalendar /> },
+    { text: "Summarize the key points of the new IT security policy", icon: <FiShield /> },
+    { text: "List common troubleshooting steps for network connectivity issues", icon: <FiWifi /> },
+    { text: "How do I submit a travel reimbursement claim?", icon: <FiDollarSign /> },
   ];
+
+  useEffect(() => {
+    if (isSignedIn && user) {
+      registerUser(user);
+    }
+  }, [isSignedIn, user, registerUser]);
+
+  // const registerUser = async (user) => {
+  //   try {
+  //     const response = await axios.post('http://localhost:5001/register', {
+  //       email: user.primaryEmailAddress.emailAddress,
+  //       name: user.firstName || 'User',
+  //     });
+  //     console.log(response.data.message);
+  //   } catch (error) {
+  //     console.error('Error registering user:', error);
+  //     // TODO: Add user-facing error message
+  //   }
+  // };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,24 +64,22 @@ const Mainn = () => {
       return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
     } else if (user?.firstName) {
       const names = user.firstName.split(' ');
-      if (names.length > 1) {
-        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-      } else {
-        return user.firstName[0].toUpperCase();
-      }
+      return names.length > 1 
+        ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+        : user.firstName[0].toUpperCase();
     }
     return 'U';
   };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
       try {
         await uploadDocument(file);
-        // You might want to add some UI feedback here
         console.log('File uploaded successfully');
       } catch (error) {
         console.error('Error uploading file:', error);
-        // Handle error (e.g., show an error message to the user)
+        // TODO: Add user-facing error message
       }
     }
   };
@@ -74,16 +91,11 @@ const Mainn = () => {
     }
   };
 
-  // Add this useEffect to scroll to the bottom when conversation updates
-  React.useEffect(() => {
+  useEffect(() => {
     if (conversationEndRef.current) {
       conversationEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [conversation]);
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
 
   return (
     <div className={`main ${darkMode ? 'dark-mode' : ''}`}>
@@ -103,7 +115,7 @@ const Mainn = () => {
               <UserButton showName />
             </SignedIn>
             <SignedOut>
-              <SignInButton mode="modal">
+            <SignInButton mode="modal" redirectUrl="http://localhost:5173">
                 <button className="sign-in-button">Sign In</button>
               </SignInButton>
             </SignedOut>
@@ -122,7 +134,7 @@ const Mainn = () => {
                 <div key={index} className="card" onClick={() => setInput(card.text)}>
                   <div className="card-content">{card.text}</div>
                   <div className="card-icon">
-                    <img src={assets[`${card.icon}_icon`]} alt={card.icon} />
+                    {card.icon}
                   </div>
                 </div>
               ))}

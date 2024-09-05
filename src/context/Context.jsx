@@ -1,8 +1,8 @@
 import React, { createContext, useState, useCallback, useEffect } from "react";
-import run from "../config/gemini.js"; // Make sure this path is correct
+import run from "../config/gemini.js";
 import axios from 'axios';
 
-export const Context = createContext(); // Ensure this line is uncommented
+export const Context = createContext();
 
 export const ContextProvider = ({ children }) => {
     const [input, setInput] = useState("");
@@ -10,43 +10,27 @@ export const ContextProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [showInitialContent, setShowInitialContent] = useState(true);
     const [documentUploaded, setDocumentUploaded] = useState(false);
-    const [uploadedDocumentName, setUploadedDocumentName] = useState(""); // Add this line
+    const [uploadedDocumentName, setUploadedDocumentName] = useState("");
     const [darkMode, setDarkMode] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
 
     useEffect(() => {
-        if (darkMode) {
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
-        }
+        document.body.classList.toggle('dark-mode', darkMode);
     }, [darkMode]);
 
     const formatResponse = (response) => {
-        // Split the response by new lines to handle line breaks
-        let parts = response.split('\n');
-        let formattedResponse = "";
-
-        parts.forEach((part, index) => {
+        const parts = response.split('\n');
+        return parts.map((part, index) => {
             // Handle headers
-            if (part.startsWith("## ")) {
-                part = `<h2>${part.substring(3)}</h2>`;
-            } else if (part.startsWith("# ")) {
-                part = `<h1>${part.substring(2)}</h1>`;
-            } else if (part.startsWith("### ")) {
-                part = `<h3>${part.substring(4)}</h3>`;
-            } else if (part.startsWith("#### ")) {
-                part = `<h4>${part.substring(5)}</h4>`;
-            } else if (part.startsWith("##### ")) {
-                part = `<h5>${part.substring(6)}</h5>`;
-            } else if (part.startsWith("###### ")) {
-                part = `<h6>${part.substring(7)}</h6>`;
-            }
+            if (part.startsWith("## ")) return `<h2>${part.substring(3)}</h2>`;
+            if (part.startsWith("# ")) return `<h1>${part.substring(2)}</h1>`;
+            if (part.startsWith("### ")) return `<h3>${part.substring(4)}</h3>`;
+            if (part.startsWith("#### ")) return `<h4>${part.substring(5)}</h4>`;
+            if (part.startsWith("##### ")) return `<h5>${part.substring(6)}</h5>`;
+            if (part.startsWith("###### ")) return `<h6>${part.substring(7)}</h6>`;
 
             // Move content after start to the next line and make it bold
-            if (part.match(/^[A-Za-z ]+:$/)) {
-                part = `<br><b>${part}</b>`;
-            }
+            if (part.match(/^[A-Za-z ]+:$/)) return `<br><b>${part}</b>`;
 
             // Handle bold and italic formatting
             part = part.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>'); // Bold
@@ -55,16 +39,8 @@ export const ContextProvider = ({ children }) => {
             // Remove asterisks
             part = part.replace(/\*/g, '');
 
-            // Add the formatted part to the response
-            formattedResponse += part;
-
-            // Add a line break if it's not the last part
-            if (index < parts.length - 1) {
-                formattedResponse += '<br>';
-            }
-        });
-
-        return formattedResponse;
+            return part + (index < parts.length - 1 ? '<br>' : '');
+        }).join('');
     };
 
     const uploadDocument = async (file) => {
@@ -72,17 +48,16 @@ export const ContextProvider = ({ children }) => {
         formData.append('file', file);
 
         try {
-            const response = await fetch('http://localhost:5001/upload', {
-                method: 'POST',
-                body: formData,
+            const response = await axios.post('http://localhost:5001/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
             });
 
-            if (!response.ok) {
-                throw new Error('File upload failed');
-            }
+            if (response.status !== 200) throw new Error('File upload failed');
 
             setDocumentUploaded(true);
-            setUploadedDocumentName(file.name); // Set the uploaded document name
+            setUploadedDocumentName(file.name);
         } catch (error) {
             console.error('Error uploading document:', error);
             throw error;
@@ -91,16 +66,12 @@ export const ContextProvider = ({ children }) => {
 
     const uploadImage = (file) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
-            setSelectedImage(e.target.result);
-        };
+        reader.onload = (e) => setSelectedImage(e.target.result);
         reader.readAsDataURL(file);
     };
 
     const processImageWithPrompt = async (prompt) => {
-        if (!selectedImage) {
-            throw new Error('No image selected');
-        }
+        if (!selectedImage) throw new Error('No image selected');
 
         try {
             const response = await axios.post('http://localhost:5002/process_image', {
@@ -125,20 +96,15 @@ export const ContextProvider = ({ children }) => {
                 if (selectedImage) {
                     response = await processImageWithPrompt(input.trim());
                 } else if (documentUploaded) {
-                    response = await fetch('http://localhost:5001/query', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ question: input.trim() }),
+                    const res = await axios.post('http://localhost:5001/query', {
+                        question: input.trim()
                     });
-                    response = await response.json();
-                    response = response.response;
+                    response = res.data.response;
                 } else {
                     response = await run(input);
                 }
 
-                let formattedResponse = formatResponse(response);
+                const formattedResponse = formatResponse(response);
                 
                 setConversation(prev => [
                     ...prev.slice(0, -1),
@@ -152,7 +118,7 @@ export const ContextProvider = ({ children }) => {
                 ]);
             } finally {
                 setLoading(false);
-                setInput(""); // Clear input after sending
+                setInput("");
                 setSelectedImage(null);
             }
         }
@@ -163,7 +129,24 @@ export const ContextProvider = ({ children }) => {
         setInput("");
         setShowInitialContent(true);
         setDocumentUploaded(false);
+        setUploadedDocumentName("");
+        setSelectedImage(null);
     }, []);
+
+    const registerUser = async (user) => {
+        try {
+            const response = await axios.post('http://localhost:5005/register', {
+                email: user.primaryEmailAddress.emailAddress,
+                name: user.firstName || 'User',
+            });
+            console.log(response.data.message);
+            // You might want to add some state update here to reflect successful registration
+        } catch (error) {
+            console.error('Error registering user:', error);
+            // You might want to add some state update here to handle registration error
+        }
+    };
+
 
     const contextValue = {
         input,
@@ -181,7 +164,8 @@ export const ContextProvider = ({ children }) => {
         darkMode,
         setDarkMode,
         uploadImage,
-        selectedImage
+        selectedImage,
+        registerUser
     };
 
     return (
