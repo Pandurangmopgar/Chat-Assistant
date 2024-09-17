@@ -39,18 +39,7 @@ const Mainn = () => {
     }
   }, [isSignedIn, user, registerUser]);
 
-  // const registerUser = async (user) => {
-  //   try {
-  //     const response = await axios.post('http://localhost:5001/register', {
-  //       email: user.primaryEmailAddress.emailAddress,
-  //       name: user.firstName || 'User',
-  //     });
-  //     console.log(response.data.message);
-  //   } catch (error) {
-  //     console.error('Error registering user:', error);
-  //     // TODO: Add user-facing error message
-  //   }
-  // };
+ 
 
   const handleSubmit = async (e) => {
     e.preventDefault();

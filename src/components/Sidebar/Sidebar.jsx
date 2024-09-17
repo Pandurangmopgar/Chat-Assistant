@@ -7,9 +7,7 @@ function Sidebar() {
   const { conversation, startNewChat } = useContext(Context);
 
   const getPromptPreview = (exchange) => {
-    if (typeof exchange === 'string') {
-      return exchange.slice(0, 30);
-    } else if (exchange && typeof exchange.input === 'string') {
+    if (typeof exchange === 'object' && exchange.input) {
       return exchange.input.slice(0, 30);
     }
     return 'No preview available';
