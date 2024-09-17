@@ -99,12 +99,12 @@ const Mainn = () => {
           >
             {darkMode ? <FiSun /> : <FiMoon />}
           </button>
-          <div className='user-auth'>
+          <div className='user-auth' >
             <SignedIn>
               <UserButton showName />
             </SignedIn>
             <SignedOut>
-            <SignInButton mode="modal" redirectUrl="http://localhost:5173">
+            <SignInButton mode="modal" redirectUrl="/">
                 <button className="sign-in-button">Sign In</button>
               </SignInButton>
             </SignedOut>
