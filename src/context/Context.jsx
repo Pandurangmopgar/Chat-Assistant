@@ -5,8 +5,7 @@ import axios from 'axios';
 import { useUser } from "@clerk/clerk-react";
 
 export const Context = createContext();
-// const FASTAPI_URL = // const FASTAPI_URL = 'http://localhost:5000/api';
-const FASTAPI_URL = 'https://9jsmecxsdd.execute-api.us-east-1.amazonaws.com/production';
+const FASTAPI_URL = 'http://localhost:5000/api';
 const NODE_API_URL = 'http://localhost:5005'; // Node.js backend for user registration
 
 export const ContextProvider = ({ children }) => {
@@ -33,31 +32,22 @@ export const ContextProvider = ({ children }) => {
     }, [user]);
 
     const formatResponse = (response) => {
-        if (!response) {
-            console.error('Received null or undefined response');
-            return 'Error: Received an empty response from the server.';
-        }
-        
-        try {
-            const parts = response.split('\n');
-            return parts.map((part, index) => {
-                if (part.startsWith("## ")) return `<h2>${part.substring(3)}</h2>`;
-                if (part.startsWith("# ")) return `<h1>${part.substring(2)}</h1>`;
-                if (part.startsWith("### ")) return `<h3>${part.substring(4)}</h3>`;
-                if (part.startsWith("#### ")) return `<h4>${part.substring(5)}</h4>`;
-                if (part.startsWith("##### ")) return `<h5>${part.substring(6)}</h5>`;
-                if (part.startsWith("###### ")) return `<h6>${part.substring(7)}</h6>`;
-                if (part.match(/^[A-Za-z ]+:$/)) return `<br><b>${part}</b>`;
-                part = part.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-                part = part.replace(/\*(.*?)\*/g, '<i>$1</i>');
-                part = part.replace(/\*/g, '');
-                return part + (index < parts.length - 1 ? '<br>' : '');
-            }).join('');
-        } catch (error) {
-            console.error('Error in formatResponse:', error);
-            return 'Error: Failed to format the response.';
-        }
+        const parts = response.split('\n');
+        return parts.map((part, index) => {
+            if (part.startsWith("## ")) return `<h2>${part.substring(3)}</h2>`;
+            if (part.startsWith("# ")) return `<h1>${part.substring(2)}</h1>`;
+            if (part.startsWith("### ")) return `<h3>${part.substring(4)}</h3>`;
+            if (part.startsWith("#### ")) return `<h4>${part.substring(5)}</h4>`;
+            if (part.startsWith("##### ")) return `<h5>${part.substring(6)}</h5>`;
+            if (part.startsWith("###### ")) return `<h6>${part.substring(7)}</h6>`;
+            if (part.match(/^[A-Za-z ]+:$/)) return `<br><b>${part}</b>`;
+            part = part.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            part = part.replace(/\*(.*?)\*/g, '<i>$1</i>');
+            part = part.replace(/\*/g, '');
+            return part + (index < parts.length - 1 ? '<br>' : '');
+        }).join('');
     };
+
     const uploadDocument = async (file) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -98,47 +88,36 @@ export const ContextProvider = ({ children }) => {
                     userId: user?.id || 'anonymous',
                 };
     
-                console.log('Sending request to:', FASTAPI_URL);
-                console.log('Query data:', queryData);
+                // Only add image if it exists
+                if (selectedImage) {
+                    queryData.image = selectedImage;
+                }
+    
+                // Only add document if it exists
+                if (uploadedDocumentContent) {
+                    queryData.document = uploadedDocumentContent;
+                    queryData.documentName = uploadedDocumentName;
+                }
     
                 const response = await axios.post(`${FASTAPI_URL}/query`, queryData);
                 
-                console.log('Received response:', response);
-    
-                if (response.data && response.data.body) {
-                    const bodyData = JSON.parse(response.data.body);
-                    const formattedResponse = formatResponse(bodyData.response);
-                    
-                    setConversation(prev => [
-                        ...prev.slice(0, -1),
-                        { 
-                            input: input.trim(), 
-                            response: formattedResponse,
-                            queryType: bodyData.query_type
-                        }
-                    ]);
-    
-                    if (bodyData.context_summary) {
-                        setContextSummary(bodyData.context_summary);
-                    }
-                } else {
-                    throw new Error('Invalid response format from server');
-                }
-            } catch (error) {
-                console.error("Error in onSent:", error);
-                let errorMessage = "An error occurred while processing your request.";
-                if (error.response) {
-                    console.error("Response error data:", error.response.data);
-                    errorMessage = error.response.data.detail || errorMessage;
-                } else if (error.request) {
-                    console.error("No response received:", error.request);
-                    errorMessage = "No response received from the server. Please check your internet connection.";
-                } else {
-                    console.error("Error details:", error.message);
-                }
+                const formattedResponse = formatResponse(response.data.response);
+                
                 setConversation(prev => [
                     ...prev.slice(0, -1),
-                    { input: input.trim(), response: errorMessage }
+                    { 
+                        input: input.trim(), 
+                        response: formattedResponse,
+                        queryType: response.data.query_type
+                    }
+                ]);
+    
+                setContextSummary(response.data.context_summary);
+            } catch (error) {
+                console.error("Error in onSent:", error);
+                setConversation(prev => [
+                    ...prev.slice(0, -1),
+                    { input: input.trim(), response: "An error occurred while processing your request." }
                 ]);
             } finally {
                 setLoading(false);
@@ -146,7 +125,8 @@ export const ContextProvider = ({ children }) => {
                 setSelectedImage(null);
             }
         }
-    }, [input, selectedImage, uploadedDocumentContent, uploadedDocumentName, user, FASTAPI_URL]);
+    }, [input, selectedImage, uploadedDocumentContent, uploadedDocumentName, user]);
+
     const startNewChat = useCallback(() => {
         setConversation([]);
         setInput("");
