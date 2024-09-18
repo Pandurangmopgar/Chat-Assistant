@@ -6,10 +6,10 @@ import { useUser } from "@clerk/clerk-react";
 
 export const Context = createContext();
 // const FASTAPI_URL = // const FASTAPI_URL = 'http://localhost:5000/api';
+// const FASTAPI_URL = 'https://9jsmecxsdd.execute-api.us-east-1.amazonaws.com/production';
 const FASTAPI_URL = 'https://9jsmecxsdd.execute-api.us-east-1.amazonaws.com/production';
-// const NODE_API_URL = 'http://localhost:5005'; 
 // Node.js backend for user registration
-const UPLOAD_URL='http://localhost:5000/api'
+// const UPLOAD_URL='http://localhost:5000/api'
 
 
 export const ContextProvider = ({ children }) => {
@@ -181,7 +181,7 @@ export const ContextProvider = ({ children }) => {
 
     const registerUser = async (user) => {
         try {
-            const response = await axios.post(`${NODE_API_URL}/register`, {
+            const response = await axios.post(`${FASTAPI_URL}/register`, {
                 email: user.primaryEmailAddress.emailAddress,
                 name: user.firstName || 'User',
             });
