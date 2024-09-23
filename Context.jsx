@@ -9,7 +9,7 @@ export const Context = createContext();
 const FASTAPI_URL = 'https://9jsmecxsdd.execute-api.us-east-1.amazonaws.com/production';
 const NODE_API_URL = 'http://localhost:5005'; 
 // Node.js backend for user registration
-const UPLOAD_URL='http://localhost:5000/api'
+// const UPLOAD_URL='http://localhost:5000/api'
 
 
 export const ContextProvider = ({ children }) => {
@@ -66,7 +66,7 @@ export const ContextProvider = ({ children }) => {
         formData.append('file', file);
     
         try {
-            const response = await axios.post(`${FASTAPI_URL}/api/upload`, formData, {
+            const response = await axios.post(`${FASTAPI_URL}/upload`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
@@ -90,7 +90,7 @@ export const ContextProvider = ({ children }) => {
             setSelectedImage(imageData);
     
             try {
-                const response = await axios.post(`${FASTAPI_URL}/api/process_image`, {
+                const response = await axios.post(`${FASTAPI_URL}/process_image`, {
                     image: imageData,
                     prompt: "Analyze this image" // You can customize this prompt
                 });
