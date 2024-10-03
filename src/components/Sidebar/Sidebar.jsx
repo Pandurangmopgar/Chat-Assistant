@@ -1,10 +1,14 @@
-import React, { useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import './Sidebar.css';
 import { assets } from '../../assets/assets';
 import { Context } from '../../context/Context';
+import Settings from '../Settings/Settings';
+import Help from '../Help/Help';
 
 function Sidebar() {
   const { conversation, startNewChat } = useContext(Context);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const getPromptPreview = (exchange) => {
     if (typeof exchange === 'object' && exchange.input) {
@@ -38,19 +42,18 @@ function Sidebar() {
         </div>
       </div>
       <div className='bottom'>
-        <div className="bottom-item recent-entry">
+        <div className="bottom-item recent-entry" onClick={() => setShowHelp(true)}>
           <img src={assets.question_icon} alt='Help' />
           <p>Help</p>
         </div>
-        <div className="bottom-item recent-entry">
-          <img src={assets.history_icon} alt='Activity' />
-          <p>Activity</p>
-        </div>
-        <div className="bottom-item recent-entry">
+        
+        <div className="bottom-item recent-entry" onClick={() => setShowSettings(true)}>
           <img src={assets.setting_icon} alt='Settings' />
           <p>Settings</p>
         </div>
       </div>
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      {showHelp && <Help onClose={() => setShowHelp(false)} />}
     </div>
   );
 }

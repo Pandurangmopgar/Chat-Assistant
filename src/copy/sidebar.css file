@@ -1,0 +1,137 @@
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    background-color: #f0f4f9; /* Slightly lighter than the main background in dark mode */
+    color: #333333; /* Changed to dark color for light mode */
+    width: 260px;
+    height: 100vh;
+    transition: width 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+}
+
+.sidebar.collapsed {
+    width: 60px;
+}
+
+.top {
+    padding: 10px 0 20px 10px;
+}
+
+.menu {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.content {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 0 10px;
+}
+
+.new-chat {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+
+.recent-title {
+    font-size: 12px;
+    color: #333333; /* Ensure this is dark in light mode */
+    margin-bottom: 10px;
+}
+
+.recent-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    cursor: pointer;
+}
+
+.recent-entry:hover {
+    background-color: #e0e0e0; /* Existing light mode hover color */
+}
+
+.dark-mode .recent-entry:hover {
+    background-color: #dfcccc; /* Darker hover color for dark mode */
+}
+
+.bottom {
+    padding: 10px;
+}
+
+.bottom-item {
+    margin-bottom: 5px;
+}
+
+.sidebar img {
+    width: 20px;
+    height: 20px;
+    filter: none; /* Remove invert filter for light mode */
+}
+
+.sidebar p {
+    margin: 0;
+    font-size: 14px;
+    color: #333333; /* Changed to dark color for light mode */
+}
+
+.collapsed .new-chat p,
+.collapsed .recent-title,
+.collapsed .recent-entry p,
+.collapsed .bottom-item p {
+    display: none;
+}
+
+.collapsed .new-chat,
+.collapsed .recent-entry,
+.collapsed .bottom-item {
+    justify-content: center;
+}
+
+.dark-mode .sidebar {
+    background-color: #2a2a2a; /* Dark background for dark mode */
+    color: #f0f0f0;
+}
+
+.dark-mode .sidebar p,
+.dark-mode .recent-title {
+    color: #f0f0f0; /* Keep light text color for dark mode */
+}
+
+.new-chat {
+    /* ... existing styles ... */
+    border: 1px solid #e0e0e0;
+}
+
+.dark-mode .new-chat {
+    border-color: #444; /* Darker border color for dark mode */
+}
+
+.dark-mode .sidebar img {
+    filter: invert(1); /* Keep invert for dark mode */
+}
+
+/* Dark mode styles for sidebar */
+.dark-mode .sidebar .new-chat,
+.dark-mode .sidebar .recent-entry {
+    border-color: #444;
+}
+
+.dark-mode .sidebar .recent-entry:hover {
+    background-color: #2a2a2a;
+}
+
+.dark-mode .sidebar img {
+    filter: invert(1);
+}
+
+/* Add smooth transitions */
+.sidebar, .sidebar .new-chat, .sidebar .recent-entry, .sidebar p, .sidebar img {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, filter 0.3s ease;
+}

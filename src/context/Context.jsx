@@ -23,6 +23,9 @@ export const ContextProvider = ({ children }) => {
     const [uploadedDocumentContent, setUploadedDocumentContent] = useState(null);
     const [contextSummary, setContextSummary] = useState("");
     const { user } = useUser();
+    const [aiPreferences, setAIPreferences] = useState({
+        customPrompt: ''
+      });
 
     // Initialize Pinecone client
     
@@ -211,7 +214,10 @@ export const ContextProvider = ({ children }) => {
             uploadImage,
             selectedImage,
             registerUser,
-            contextSummary
+            contextSummary,
+            aiPreferences,
+            setAIPreferences,
+
         };
     
         return (

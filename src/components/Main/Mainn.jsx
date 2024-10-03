@@ -104,7 +104,7 @@ const Mainn = () => {
               <UserButton showName />
             </SignedIn>
             <SignedOut>
-            <SignInButton mode="modal" redirectUrl="/">
+              <SignInButton mode="modal" redirectUrl="/">
                 <button className="sign-in-button">Sign In</button>
               </SignInButton>
             </SignedOut>
