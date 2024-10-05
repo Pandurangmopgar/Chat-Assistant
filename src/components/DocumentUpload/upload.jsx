@@ -1,21 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { FiUpload, FiFile, FiTrash2 } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Upload, Trash2, Moon, Sun, Search, FileText, LogIn } from 'lucide-react';
 import axios from 'axios';
-import './AdminDocumentUpload.css';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 
 const API_BASE_URL = 'http://localhost:3000';
 
 const AdminDocumentUpload = () => {
   const [files, setFiles] = useState([]);
   const [department, setDepartment] = useState('');
-  const [uploadStatus, setUploadStatus] = useState('');
   const [documents, setDocuments] = useState([]);
   const [uploadProgress, setUploadProgress] = useState({});
+  const [darkMode, setDarkMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('all');
+
+  const { user, isSignedIn } = useUser();
 
   useEffect(() => {
     fetchDocuments();
+    const isDarkMode = localStorage.getItem('darkMode') === 'true';
+    setDarkMode(isDarkMode);
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', darkMode);
+    localStorage.setItem('darkMode', darkMode);
+  }, [darkMode]);
 
   const fetchDocuments = async () => {
     try {
@@ -23,7 +39,6 @@ const AdminDocumentUpload = () => {
       setDocuments(response.data);
     } catch (error) {
       console.error('Error fetching documents:', error);
-      setUploadStatus('Error fetching documents. Please try again.');
     }
   };
 
@@ -31,23 +46,26 @@ const AdminDocumentUpload = () => {
     setFiles(Array.from(event.target.files));
   };
 
-  const handleDepartmentChange = (event) => {
-    setDepartment(event.target.value);
+  const handleDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setFiles(Array.from(event.dataTransfer.files));
   };
 
   const handleUpload = async () => {
     if (files.length === 0 || !department) {
-      setUploadStatus('Please select files and a department.');
+      console.error("Please select files and a department.");
       return;
     }
 
-    setUploadStatus('Initiating upload...');
     setUploadProgress({});
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
-        // Step 1: Get pre-signed URL
         const presignedUrlResponse = await axios.post(`${API_BASE_URL}/api/getPresignedUrl`, {
           fileName: file.name,
           fileType: file.type,
@@ -56,7 +74,6 @@ const AdminDocumentUpload = () => {
 
         const { uploadUrl, fileKey, documentId } = presignedUrlResponse.data;
 
-        // Step 2: Upload to S3
         await axios.put(uploadUrl, file, {
           headers: { 'Content-Type': file.type },
           onUploadProgress: (progressEvent) => {
@@ -65,123 +82,193 @@ const AdminDocumentUpload = () => {
           }
         });
 
-        // Step 3: Confirm upload
         await axios.post(`${API_BASE_URL}/api/confirmUpload`, { fileKey, documentId, department });
 
-        setUploadStatus(prev => `${prev}\n${file.name} uploaded successfully!`);
+        console.log(`${file.name} uploaded successfully!`);
       } catch (error) {
         console.error(`Upload error for ${file.name}:`, error);
-        setUploadStatus(prev => `${prev}\nError uploading ${file.name}. Please try again.`);
       }
     }
 
     setFiles([]);
     setUploadProgress({});
-    fetchDocuments(); // Refresh the document list
+    fetchDocuments();
   };
 
   const handleDelete = async (id) => {
     try {
       await axios.delete(`${API_BASE_URL}/api/documents/${id}`);
       setDocuments(documents.filter(doc => doc.id !== id));
-      setUploadStatus('Document deleted successfully.');
+      console.log("Document deleted successfully.");
     } catch (error) {
       console.error('Error deleting document:', error);
-      setUploadStatus('Error deleting document. Please try again.');
     }
   };
 
+  const filteredDocuments = useCallback(() => {
+    return documents.filter(doc => 
+      (filterDepartment === 'all' || doc.department === filterDepartment) &&
+      doc.original_name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [documents, filterDepartment, searchTerm]);
+
+  if (!isSignedIn) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-r from-blue-400 to-purple-500">
+        <Card className="p-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Access Restricted</h1>
+          <p className="mb-4">Please sign in to access this page.</p>
+          <SignInButton mode="modal">
+            <Button>
+              <LogIn className="mr-2 h-4 w-4" />
+              Sign In
+            </Button>
+          </SignInButton>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <motion.div 
-      className="admin-document-upload"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <h1>Admin Document Management</h1>
-      <motion.div 
-        className="upload-section"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <input 
-          type="file" 
-          onChange={handleFileChange} 
-          id="file-input"
-          className="file-input"
-          accept=".pdf,.txt"
-          multiple
-        />
-        <label htmlFor="file-input" className="file-label">
-          <FiUpload />
-          <span>{files.length > 0 ? `${files.length} files selected` : 'Choose files'}</span>
-        </label>
-        <select 
-          value={department} 
-          onChange={handleDepartmentChange}
-          className="department-select"
-        >
-          <option value="">Select Department</option>
-          <option value="hr">HR</option>
-          <option value="it">IT</option>
-          <option value="other">Other</option>
-        </select>
-        <motion.button 
-          onClick={handleUpload} 
-          disabled={files.length === 0 || !department}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          Upload Documents
-        </motion.button>
-      </motion.div>
-      {uploadStatus && (
-        <motion.pre 
-          className="status"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {uploadStatus}
-        </motion.pre>
-      )}
-      {Object.entries(uploadProgress).map(([fileName, progress]) => (
-        <div key={fileName} className="progress-bar-container">
-          <span>{fileName}</span>
-          <div className="progress-bar">
-            <div 
-              className="progress" 
-              style={{ width: `${progress}%` }}
-            ></div>
+    <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 text-white">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold">Admin Document Management</h1>
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setDarkMode(!darkMode)}
+              className="bg-white/10 hover:bg-white/20"
+            >
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            <UserButton afterSignOutUrl="/" />
           </div>
         </div>
-      ))}
-      <div className="document-list">
-        <h2>Uploaded Documents</h2>
-        {documents.map((doc) => (
-          <motion.div 
-            key={doc.id} 
-            className="document-item"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <FiFile className="doc-icon" />
-            <span>{doc.original_name}</span>
-            <span className="document-department">{doc.department}</span>
-            <motion.button 
-              onClick={() => handleDelete(doc.id)} 
-              className="delete-btn"
-              whileHover={{ scale: 1.1, color: '#ff4d4d' }}
-              whileTap={{ scale: 0.9 }}
+
+        <Card className="mb-8 bg-white/10 backdrop-blur-lg">
+          <CardContent className="p-6">
+            <div className="flex flex-col space-y-4">
+              <div
+                className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center cursor-pointer"
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+              >
+                <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                <p className="mt-1">Drag and drop files here, or click to select files</p>
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="file-input"
+                  accept=".pdf,.txt"
+                  multiple
+                />
+                <Button asChild className="mt-4">
+                  <label htmlFor="file-input">Select Files</label>
+                </Button>
+              </div>
+              <div className="flex space-x-4">
+                <Select onValueChange={setDepartment} value={department}>
+                  <SelectTrigger className="w-[180px] bg-white/10">
+                    <SelectValue placeholder="Select Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hr">HR</SelectItem>
+                    <SelectItem value="it">IT</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleUpload} disabled={files.length === 0 || !department}>
+                  Upload Documents
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <AnimatePresence>
+          {Object.entries(uploadProgress).map(([fileName, progress]) => (
+            <motion.div
+              key={fileName}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-4"
             >
-              <FiTrash2 />
-            </motion.button>
-          </motion.div>
-        ))}
+              <p className="text-sm font-medium">{fileName}</p>
+              <Progress value={progress} className="w-full" />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        <Card className="bg-white/10 backdrop-blur-lg">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="relative flex-grow mr-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search documents..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-white/10 text-white placeholder-gray-300"
+                />
+              </div>
+              <Select onValueChange={setFilterDepartment} value={filterDepartment}>
+                <SelectTrigger className="w-[180px] bg-white/10">
+                  <SelectValue placeholder="Filter by Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  <SelectItem value="hr">HR</SelectItem>
+                  <SelectItem value="it">IT</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <h2 className="text-2xl font-semibold mb-4">Uploaded Documents</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {filteredDocuments().map((doc) => (
+                  <motion.div
+                    key={doc.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.3 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Card className="bg-white/20 backdrop-blur-sm">
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <FileText className="h-8 w-8 text-blue-500" />
+                          <div>
+                            <p className="font-medium">{doc.original_name}</p>
+                            <p className="text-sm text-gray-300">{doc.department}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(doc.id)}
+                          className="text-red-400 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
