@@ -4,14 +4,14 @@ import { FiUpload, FiFile, FiTrash2 } from 'react-icons/fi';
 import axios from 'axios';
 import './AdminDocumentUpload.css';
 
-// Set the base URL for all API calls
 const API_BASE_URL = 'http://localhost:3000';
 
 const AdminDocumentUpload = () => {
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [department, setDepartment] = useState('');
   const [uploadStatus, setUploadStatus] = useState('');
   const [documents, setDocuments] = useState([]);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState({});
 
   useEffect(() => {
     fetchDocuments();
@@ -28,48 +28,56 @@ const AdminDocumentUpload = () => {
   };
 
   const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
+    setFiles(Array.from(event.target.files));
+  };
+
+  const handleDepartmentChange = (event) => {
+    setDepartment(event.target.value);
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      setUploadStatus('Please select a file.');
+    if (files.length === 0 || !department) {
+      setUploadStatus('Please select files and a department.');
       return;
     }
 
-    try {
-      setUploadStatus('Initiating upload...');
-      setUploadProgress(0);
+    setUploadStatus('Initiating upload...');
+    setUploadProgress({});
 
-      // Step 1: Get pre-signed URL
-      const presignedUrlResponse = await axios.post(`${API_BASE_URL}/api/getPresignedUrl`, {
-        fileName: file.name,
-        fileType: file.type
-      });
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        // Step 1: Get pre-signed URL
+        const presignedUrlResponse = await axios.post(`${API_BASE_URL}/api/getPresignedUrl`, {
+          fileName: file.name,
+          fileType: file.type,
+          department: department
+        });
 
-      const { uploadUrl, fileKey, documentId } = presignedUrlResponse.data;
+        const { uploadUrl, fileKey, documentId } = presignedUrlResponse.data;
 
-      // Step 2: Upload to S3
-      await axios.put(uploadUrl, file, {
-        headers: { 'Content-Type': file.type },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percentCompleted);
-        }
-      });
+        // Step 2: Upload to S3
+        await axios.put(uploadUrl, file, {
+          headers: { 'Content-Type': file.type },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
+          }
+        });
 
-      // Step 3: Confirm upload
-      await axios.post(`${API_BASE_URL}/api/confirmUpload`, { fileKey, documentId });
+        // Step 3: Confirm upload
+        await axios.post(`${API_BASE_URL}/api/confirmUpload`, { fileKey, documentId, department });
 
-      setUploadStatus('File uploaded successfully!');
-      setFile(null);
-      setUploadProgress(0);
-      fetchDocuments(); // Refresh the document list
-    } catch (error) {
-      console.error('Upload error:', error);
-      setUploadStatus('Error uploading file. Please try again.');
-      setUploadProgress(0);
+        setUploadStatus(prev => `${prev}\n${file.name} uploaded successfully!`);
+      } catch (error) {
+        console.error(`Upload error for ${file.name}:`, error);
+        setUploadStatus(prev => `${prev}\nError uploading ${file.name}. Please try again.`);
+      }
     }
+
+    setFiles([]);
+    setUploadProgress({});
+    fetchDocuments(); // Refresh the document list
   };
 
   const handleDelete = async (id) => {
@@ -102,38 +110,52 @@ const AdminDocumentUpload = () => {
           id="file-input"
           className="file-input"
           accept=".pdf,.txt"
+          multiple
         />
         <label htmlFor="file-input" className="file-label">
           <FiUpload />
-          <span>{file ? file.name : 'Choose a file'}</span>
+          <span>{files.length > 0 ? `${files.length} files selected` : 'Choose files'}</span>
         </label>
+        <select 
+          value={department} 
+          onChange={handleDepartmentChange}
+          className="department-select"
+        >
+          <option value="">Select Department</option>
+          <option value="hr">HR</option>
+          <option value="it">IT</option>
+          <option value="other">Other</option>
+        </select>
         <motion.button 
           onClick={handleUpload} 
-          disabled={!file}
+          disabled={files.length === 0 || !department}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          Upload Document
+          Upload Documents
         </motion.button>
       </motion.div>
       {uploadStatus && (
-        <motion.p 
+        <motion.pre 
           className="status"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
           {uploadStatus}
-        </motion.p>
+        </motion.pre>
       )}
-      {uploadProgress > 0 && uploadProgress < 100 && (
-        <div className="progress-bar">
-          <div 
-            className="progress" 
-            style={{ width: `${uploadProgress}%` }}
-          ></div>
+      {Object.entries(uploadProgress).map(([fileName, progress]) => (
+        <div key={fileName} className="progress-bar-container">
+          <span>{fileName}</span>
+          <div className="progress-bar">
+            <div 
+              className="progress" 
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
         </div>
-      )}
+      ))}
       <div className="document-list">
         <h2>Uploaded Documents</h2>
         {documents.map((doc) => (
@@ -147,6 +169,7 @@ const AdminDocumentUpload = () => {
           >
             <FiFile className="doc-icon" />
             <span>{doc.original_name}</span>
+            <span className="document-department">{doc.department}</span>
             <motion.button 
               onClick={() => handleDelete(doc.id)} 
               className="delete-btn"
