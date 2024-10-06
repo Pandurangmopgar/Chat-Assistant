@@ -107,7 +107,7 @@ const AdminDocumentUpload = () => {
 
   const filteredDocuments = useCallback(() => {
     return documents.filter(doc => 
-      (filterDepartment === 'all' || doc.department === filterDepartment) &&
+      (filterDepartment === 'all' || doc.department.toLowerCase() === filterDepartment.toLowerCase()) &&
       doc.original_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [documents, filterDepartment, searchTerm]);
@@ -131,7 +131,7 @@ const AdminDocumentUpload = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-blue-400 to-purple-500 text-white">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 flex flex-col h-screen">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold">Admin Document Management</h1>
           <div className="flex items-center space-x-4">
@@ -151,12 +151,12 @@ const AdminDocumentUpload = () => {
           <CardContent className="p-6">
             <div className="flex flex-col space-y-4">
               <div
-                className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center cursor-pointer"
+                className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center cursor-pointer transition-all hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
               >
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-1">Drag and drop files here, or click to select files</p>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Drag and drop files here, or click to select files</p>
                 <input
                   type="file"
                   onChange={handleFileChange}
@@ -203,8 +203,8 @@ const AdminDocumentUpload = () => {
           ))}
         </AnimatePresence>
 
-        <Card className="bg-white/10 backdrop-blur-lg">
-          <CardContent className="p-6">
+        <Card className="bg-white/10 backdrop-blur-lg flex-grow overflow-hidden">
+          <CardContent className="p-6 h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <div className="relative flex-grow mr-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -229,40 +229,50 @@ const AdminDocumentUpload = () => {
               </Select>
             </div>
             <h2 className="text-2xl font-semibold mb-4">Uploaded Documents</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="overflow-y-auto flex-grow">
               <AnimatePresence>
-                {filteredDocuments().map((doc) => (
+                {filteredDocuments().length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredDocuments().map((doc) => (
+                      <motion.div
+                        key={doc.id}
+                        layout
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Card className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all">
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <FileText className="h-8 w-8 text-blue-500" />
+                              <div>
+                                <p className="font-medium">{doc.original_name}</p>
+                                <p className="text-sm text-gray-300">{doc.department}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(doc.id)}
+                              className="text-red-400 hover:text-red-600 hover:bg-red-100/20"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
                   <motion.div
-                    key={doc.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.3 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center justify-center h-full"
                   >
-                    <Card className="bg-white/20 backdrop-blur-sm">
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <FileText className="h-8 w-8 text-blue-500" />
-                          <div>
-                            <p className="font-medium">{doc.original_name}</p>
-                            <p className="text-sm text-gray-300">{doc.department}</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(doc.id)}
-                          className="text-red-400 hover:text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </CardContent>
-                    </Card>
+                    <p className="text-lg text-gray-400">No documents found. Upload some documents to get started!</p>
                   </motion.div>
-                ))}
+                )}
               </AnimatePresence>
             </div>
           </CardContent>
