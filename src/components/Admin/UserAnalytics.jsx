@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Context } from '../../context/Context';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Loader2, Users, MessageSquare, Image, FileText, Zap } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Loader2, Users, MessageSquare, Image, FileText, Zap, Globe } from "lucide-react";
 
 const UserAnalytics = () => {
     const { getAnalytics, error, setError } = useContext(Context);
@@ -21,7 +21,7 @@ const UserAnalytics = () => {
         try {
             const data = await getAnalytics();
             setAnalytics(data);
-            console.log(data)
+            console.log(data);
         } catch (err) {
             setError('Failed to fetch analytics. Please try again.');
         } finally {
@@ -46,7 +46,6 @@ const UserAnalytics = () => {
         return <div className="text-red-500">{error}</div>;
     }
 
-    // Ensure analytics data is available before rendering
     if (!analytics) {
         return <div>No analytics data available.</div>;
     }
@@ -59,12 +58,58 @@ const UserAnalytics = () => {
         { title: "Document Queries", value: analytics.byType?.document_query || 0, icon: FileText },
     ];
 
+    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
+    const renderLanguageDistribution = () => {
+        if (!analytics.detailed || !analytics.detailed.languageDistribution) {
+            return <div>No language distribution data available.</div>;
+        }
+
+        const data = Object.entries(analytics.detailed.languageDistribution).map(([name, value]) => ({
+            name,
+            value
+        }));
+
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center">
+                        <Globe className="w-6 h-6 mr-2" />
+                        Language Distribution
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={data}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            >
+                                {data.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+        );
+    };
+
     return (
         <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
             <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="trends">Usage Trends</TabsTrigger>
                 <TabsTrigger value="details">Detailed Analytics</TabsTrigger>
+                <TabsTrigger value="language">Language Distribution</TabsTrigger>
             </TabsList>
             <AnimatePresence mode="wait">
                 <motion.div
@@ -131,13 +176,18 @@ const UserAnalytics = () => {
                                         {analytics.detailed && Object.entries(analytics.detailed).map(([key, value]) => (
                                             <tr key={key}>
                                                 <td className="text-left">{key}</td>
-                                                <td className="text-right">{value?.toString() || 'N/A'}</td>
+                                                <td className="text-right">
+                                                    {typeof value === 'object' ? JSON.stringify(value) : value?.toString() || 'N/A'}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </CardContent>
                         </Card>
+                    </TabsContent>
+                    <TabsContent value="language" className="mt-4">
+                        {renderLanguageDistribution()}
                     </TabsContent>
                 </motion.div>
             </AnimatePresence>
