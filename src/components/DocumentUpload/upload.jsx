@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Trash2, Moon, Sun, Search, FileText, LogIn } from 'lucide-react';
 import axios from 'axios';
@@ -21,6 +21,7 @@ const AdminDocumentUpload = () => {
   const [filterDepartment, setFilterDepartment] = useState('all');
 
   const { user, isSignedIn } = useUser();
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchDocuments();
@@ -112,6 +113,10 @@ const AdminDocumentUpload = () => {
     );
   }, [documents, filterDepartment, searchTerm]);
 
+  const handleCardClick = () => {
+    fileInputRef.current.click();
+  };
+
   if (!isSignedIn) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-r from-blue-400 to-purple-500">
@@ -151,9 +156,10 @@ const AdminDocumentUpload = () => {
           <CardContent className="p-6">
             <div className="flex flex-col space-y-4">
               <div
-                className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center cursor-pointer transition-all hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center cursor-pointer transition-all hover:border-blue-500 hover:shadow-lg"
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
+                onClick={handleCardClick}
               >
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Drag and drop files here, or click to select files</p>
@@ -162,12 +168,10 @@ const AdminDocumentUpload = () => {
                   onChange={handleFileChange}
                   className="hidden"
                   id="file-input"
-                  accept=".pdf,.txt"
+                  ref={fileInputRef}
+                  accept={department === 'it' ? ".pdf,.txt,.json" : ".pdf,.txt"}
                   multiple
                 />
-                <Button asChild className="mt-4">
-                  <label htmlFor="file-input">Select Files</label>
-                </Button>
               </div>
               <div className="flex space-x-4">
                 <Select onValueChange={setDepartment} value={department}>
@@ -242,7 +246,7 @@ const AdminDocumentUpload = () => {
                         exit={{ opacity: 0, scale: 0.8 }}
                         transition={{ duration: 0.3 }}
                       >
-                        <Card className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all">
+                        <Card className="bg-white/20 backdrop-blur-sm transition-all">
                           <CardContent className="p-4 flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                               <FileText className="h-8 w-8 text-blue-500" />

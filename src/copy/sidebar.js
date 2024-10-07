@@ -59,3 +59,63 @@ function Sidebar() {
 }
 
 export default Sidebar;
+
+
+
+
+
+
+
+
+
+
+
+const handleUpload = async () => {
+  if (files.length === 0 || !department) {
+    console.error("Please select files and a department.");
+    return;
+  }
+
+  setUploadProgress({});
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    try {
+      const presignedUrlResponse = await axios.post(`${API_BASE_URL}/api/getPresignedUrl`, {
+        fileName: file.name,
+        fileType: file.type,
+        department: department
+      });
+
+      const { uploadUrl, fileKey, documentId } = presignedUrlResponse.data;
+
+      await axios.put(uploadUrl, file, {
+        headers: { 'Content-Type': file.type },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
+        }
+      });
+
+      await axios.post(`${API_BASE_URL}/api/confirmUpload`, { fileKey, documentId, department });
+
+      console.log(`${file.name} uploaded successfully!`);
+    } catch (error) {
+      console.error(`Upload error for ${file.name}:`, error);
+    }
+  }
+
+  setFiles([]);
+  setUploadProgress({});
+  fetchDocuments();
+};
+
+const handleDelete = async (id) => {
+  try {
+    await axios.delete(`${API_BASE_URL}/api/documents/${id}`);
+    setDocuments(documents.filter(doc => doc.id !== id));
+    console.log("Document deleted successfully.");
+  } catch (error) {
+    console.error('Error deleting document:', error);
+  }
+};

@@ -1,9 +1,10 @@
+
+//    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 /** @type {import('tailwindcss').Config} */
-export default {
-	darkMode: ["class"],
+module.exports = {
 	content: [
-	  "./index.html",
-	  "./src/**/*.{js,ts,jsx,tsx}",
+		"./index.html",
+		"./src/**/*.{js,ts,jsx,tsx}",
 	],
   theme: {
   	extend: {
@@ -56,7 +57,17 @@ export default {
   			}
 			, backgroundImage: {
 				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-			  }
+			  },
+			  fontFamily: {
+				sans: ['Outfit', 'sans-serif'],
+			  },
+			  fontWeight: {
+				light: 300,
+				normal: 400,
+				medium: 500,
+				semibold: 600,
+				bold: 700,
+			  },
   		}
   	}
   },

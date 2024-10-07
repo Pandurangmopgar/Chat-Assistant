@@ -59,6 +59,8 @@ const Mainn = () => {
     }
     return 'U';
   };
+  console.log(user?.id || 'anonymous')
+  console.log(typeof user?.id)
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];

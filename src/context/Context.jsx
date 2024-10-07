@@ -1,17 +1,27 @@
 import React, { createContext, useState, useCallback, useEffect } from "react";
 import axios from 'axios';
-import { Document, Page, pdfjs } from "react-pdf";
-// import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+import { createClient } from '@supabase/supabase-js';
 import { useUser } from "@clerk/clerk-react";
-// import { Pinecone } from '@pinecone-database/pinecone';
-
-// pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export const Context = createContext();
-const FASTAPI_URL = 'https://9jsmecxsdd.execute-api.us-east-1.amazonaws.com/production';
+
+const FASTAPI_URL = 'http://localhost:5000/api';
 const NODE_API_URL ='https://qeskya3aqk.execute-api.us-east-1.amazonaws.com/production';
 
+// const supabase = createClient(
+//   "https://ystrincjuzlkryojxoxe.supabase.co",
+//   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzdHJpbmNqdXpsa3J5b2p4b3hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM2MjY2NDgsImV4cCI6MjAzOTIwMjY0OH0.RXbDQZZDDGsUw76O6X93V36-K1qRIhDwWKQBWUj6_uc",
+//   {
+//     auth: {
+//       persistSession: true
+//     }
+//   }
+// );
+const supabase = createClient("https://ystrincjuzlkryojxoxe.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzdHJpbmNqdXpsa3J5b2p4b3hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM2MjY2NDgsImV4cCI6MjAzOTIwMjY0OH0.RXbDQZZDDGsUw76O6X93V36-K1qRIhDwWKQBWUj6_uc");
+
+
 export const ContextProvider = ({ children }) => {
+    const { user } = useUser();
     const [input, setInput] = useState("");
     const [conversation, setConversation] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -20,29 +30,56 @@ export const ContextProvider = ({ children }) => {
     const [uploadedDocumentName, setUploadedDocumentName] = useState("");
     const [darkMode, setDarkMode] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
-    const [uploadedDocumentContent, setUploadedDocumentContent] = useState(null);
     const [contextSummary, setContextSummary] = useState("");
-    const { user } = useUser();
-    const [aiPreferences, setAIPreferences] = useState({
-        customPrompt: ''
-      });
-
-    // Initialize Pinecone client
-    
-// const pc = new Pinecone({
-//     apiKey: '123da8fb-620c-4823-8805-6680826d3d1b'
-//   });
-//     const index = pc.index('quickstart');
+    const [aiPreferences, setAIPreferences] = useState({ customPrompt: '' });
+    const [error, setError] = useState(null);
+    const [analytics, setAnalytics] = useState({
+        totalQueries: 0,
+        documentQueries: 0,
+        imageQueries: 0,
+        generalQueries: 0
+    });
 
     useEffect(() => {
         document.body.classList.toggle('dark-mode', darkMode);
     }, [darkMode]);
-
-    useEffect(() => {
-        if (user && user.id) {
-            registerUser(user);
+    const logInteraction = async (interactionType, details) => {
+        if (!user) {
+            console.log("No user logged in, skipping interaction logging");
+            return;
         }
-    }, [user]);
+    
+        try {
+            const { data, error } = await supabase
+                .from('ai_interactions')
+                .insert([
+                    { 
+                        type: interactionType, 
+                        details: details,
+                        user_id: user?.id || 'anonymous',
+                        response_time: details.responseTime,
+                        tokens_used: details.tokensUsed,
+                        // ai_model: details.aiModel,
+                        interaction_id: details.interactionId,
+                        language: details.language
+                    }
+                ]);
+    
+            if (error) throw error;
+    
+            // Update analytics
+            setAnalytics(prev => ({
+                ...prev,
+                totalQueries: prev.totalQueries + 1,
+                [interactionType + 'Queries']: (prev[interactionType + 'Queries'] || 0) + 1
+            }));
+    
+            console.log('Interaction logged successfully:', data);
+        } catch (error) {
+            console.error('Error logging interaction:', error);
+        }
+    };
+
     const formatResponse = (response) => {
         const parts = response.split('\n');
         return parts.map((part, index) => {
@@ -59,8 +96,98 @@ export const ContextProvider = ({ children }) => {
             return part + (index < parts.length - 1 ? '<br>' : '');
         }).join('');
     };
+
+    const onSent = useCallback(async () => {
+        if (input.trim()) {
+            setLoading(true);
+            setShowInitialContent(false);
+            setConversation(prev => [...prev, { input: input.trim() }]);
     
+            try {
+                const queryData = {
+                    question: input.trim(),
+                    userId: user?.id || 'anonymous'
+                };
     
+                let response;
+                let interactionType;
+    
+                if (selectedImage) {
+                    response = await axios.post(`${NODE_API_URL}/process-image`, {
+                        image: selectedImage,
+                        prompt: input.trim()
+                    });
+                    interactionType = 'image_query';
+                } else if (documentUploaded) {
+                    response = await axios.post(`${NODE_API_URL}/query`, {
+                        ...queryData,
+                        isDocumentQuery: true
+                    });
+                    interactionType = 'document_query';
+                } else {
+                    response = await axios.post(`${FASTAPI_URL}/query`, queryData);
+                    interactionType = 'general_query';
+                }
+    
+                console.log("API Response:", response);
+    
+                if (response.data.statusCode === 404 || (response.data.body && JSON.parse(response.data.body).error)) {
+                    throw new Error(JSON.parse(response.data.body).error || 'Not Found');
+                }
+    
+                if (response.data && response.data.response) {
+                    const formattedResponse = formatResponse(response.data.response);
+                    // print(for)
+                    console.log(formattedResponse)
+    
+                    setConversation(prev => [
+                        ...prev.slice(0, -1),
+                        { 
+                            input: input.trim(), 
+                            response: formattedResponse,
+                            queryType: response.data.query_type || 'unknown'
+                        }
+                    ]);
+    
+                    setContextSummary(response.data.context_summary || '');
+                    await logInteraction(interactionType, {
+                        query: input.trim(),
+                        response: formattedResponse,
+                        responseTime: response.data.response_time,
+                        tokensUsed: response.data.tokens_used,
+                        // aiModel: response.data.ai_model,
+                        interactionId: response.data.interaction_id,
+                        language: response.data.language
+                    });
+                } else {
+                    throw new Error('Invalid response structure from server');
+                }
+            } catch (error) {
+                console.error("Error in onSent:", error);
+                setConversation(prev => [
+                    ...prev.slice(0, -1),
+                    { input: input.trim(), response: `An error occurred: ${error.message}` }
+                ]);
+                setError('Failed to process your message. Please try again.');
+            } finally {
+                setLoading(false);
+                setInput("");
+                setSelectedImage(null);
+            }
+        }
+    }, [input, selectedImage, documentUploaded, user]);
+
+    const startNewChat = useCallback(() => {
+        setConversation([]);
+        setInput("");
+        setShowInitialContent(true);
+        setDocumentUploaded(false);
+        setUploadedDocumentName("");
+        setSelectedImage(null);
+        setContextSummary("");
+        logInteraction('new_chat', { action: 'Started new chat' });
+    }, []);
+
     const uploadDocument = async (file) => {
         try {
             const reader = new FileReader();
@@ -73,24 +200,17 @@ export const ContextProvider = ({ children }) => {
                     });
                     setUploadedDocumentName(file.name);
                     setDocumentUploaded(true);
-                    setUploadedDocumentContent(response.data.message);
-                    console.log('Document processed and stored in Pinecone successfully');
+                    console.log('Document processed successfully');
+                    await logInteraction('document_upload', { fileName: file.name, fileSize: file.size });
                 } catch (error) {
                     console.error('Error uploading document:', error);
-                    let errorMessage = 'An error occurred while processing the document.';
-                    if (error.response && error.response.data && error.response.data.details) {
-                        errorMessage += ' ' + error.response.data.details;
-                    }
-                    alert(errorMessage);
-                    setDocumentUploaded(false);
-                    setUploadedDocumentName("");
-                    setUploadedDocumentContent(null);
+                    setError('An error occurred while processing the document. Please try again.');
                 }
             };
             reader.readAsDataURL(file);
         } catch (error) {
             console.error('Error reading file:', error);
-            alert('Error reading file. Please try again.');
+            setError('Error reading file. Please try again.');
         }
     };
 
@@ -98,133 +218,127 @@ export const ContextProvider = ({ children }) => {
         try {
             const reader = new FileReader();
             reader.onload = async (e) => {
-                const base64 = e.target.result.split(',')[1];
-                setSelectedImage(e.target.result);
+                const base64 = e.target.result;
+                setSelectedImage(base64);
                 console.log('Image uploaded successfully');
+                await logInteraction('image_upload', { fileName: file.name, fileSize: file.size });
             };
             reader.readAsDataURL(file);
         } catch (error) {
             console.error('Error uploading image:', error);
             setSelectedImage(null);
-            throw error;
+            setError('Failed to upload image. Please try again.');
         }
     };
 
-    const onSent = useCallback(async () => {
-        if (input.trim()) {
-            setLoading(true);
-            setShowInitialContent(false);
-            setConversation(prev => [...prev, { input: input.trim() }]);
+    const registerUser = async (user) => {
+        try {
+            const response = await axios.post(`${NODE_API_URL}/register`, {
+                email: user.primaryEmailAddress.emailAddress,
+                name: user.firstName || 'User',
+            });
+            console.log(response.data.message);
+        } catch (error) {
+            console.error('Error registering user:', error);
+        }};
     
+
+
+
+    const getAnalytics = async () => {
             try {
-                const queryData = {
-                    question: input.trim(),
-                    userId: user?.id || 'anonymous',
+                const { data, error } = await supabase
+                    .from('ai_interactions')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+        
+                if (error) throw error;
+        
+                const now = new Date();
+                const last24Hours = new Date(now - 24 * 60 * 60 * 1000);
+                const last7Days = new Date(now - 7 * 24 * 60 * 60 * 1000);
+        
+                const analytics = {
+                    total: data.length,
+                    last24Hours: data.filter(item => new Date(item.created_at) > last24Hours).length,
+                    last7Days: data.filter(item => new Date(item.created_at) > last7Days).length,
+                    uniqueUsers: new Set(data.map(item => item.user_id)).size,
+                    avgResponseTime: data.reduce((sum, item) => sum + (item.response_time || 0), 0) / data.length,
+                    byType: data.reduce((acc, item) => {
+                        acc[item.type] = (acc[item.type] || 0) + 1;
+                        return acc;
+                    }, {}),
+                    dailyUsage: getDailyUsage(data),
+                    detailed: {
+                        totalTokensUsed: data.reduce((sum, item) => sum + (item.tokens_used || 0), 0),
+                        // mostUsedModel: getMostFrequent(data.map(item => item.ai_model)),
+                        avgTokensPerQuery: data.reduce((sum, item) => sum + (item.tokens_used || 0), 0) / data.length,
+                        languageDistribution: getLanguageDistribution(data)
+                    }
                 };
-    
-                let response;
-    
-                if (selectedImage) {
-                    response = await axios.post(`${NODE_API_URL}/process-image`, {
-                        image: selectedImage,
-                        prompt: input.trim()
-                    });
-                } else if (documentUploaded) {
-                    response = await axios.post(`${NODE_API_URL}/query`, {
-                        ...queryData,
-                        isDocumentQuery: true
-                    });
-                } else {
-                    response = await axios.post(`${FASTAPI_URL}/query`, queryData);
-                }
-    
-                console.log("API Response:", response);
-    
-                // Check for nested error response
-                if (response.data.statusCode === 404 || (response.data.body && JSON.parse(response.data.body).error)) {
-                    throw new Error(JSON.parse(response.data.body).error || 'Not Found');
-                }
-    
-                // If no error, process the response
-                if (response.data && response.data.response) {
-                    const formattedResponse = formatResponse(response.data.response);
-    
-                    setConversation(prev => [
-                        ...prev.slice(0, -1),
-                        { 
-                            input: input.trim(), 
-                            response: formattedResponse,
-                            queryType: response.data.query_type || 'unknown'
-                        }
-                    ]);
-    
-                    setContextSummary(response.data.context_summary || '');
-                } else {
-                    throw new Error('Invalid response structure from server');
-                }
+        
+                return analytics;
             } catch (error) {
-                console.error("Error in onSent:", error);
-                setConversation(prev => [
-                    ...prev.slice(0, -1),
-                    { input: input.trim(), response: `An error occurred: ${error.message}` }
-                ]);
-            } finally {
-                setLoading(false);
-                setInput("");
-                setSelectedImage(null);
+                console.error('Error fetching analytics:', error);
+                throw new Error('Failed to fetch analytics. Please try again.');
             }
-        }
-    }, [input, selectedImage, documentUploaded, user]);
-        const startNewChat = useCallback(() => {
-            setConversation([]);
-            setInput("");
-            setShowInitialContent(true);
-            setDocumentUploaded(false);
-            setUploadedDocumentName("");
-            setSelectedImage(null);
-            setUploadedDocumentContent(null);
-            setContextSummary("");
-        }, []);
-    
-        const registerUser = async (user) => {
-            try {
-                const response = await axios.post(`${NODE_API_URL}/register`, {
-                    email: user.primaryEmailAddress.emailAddress,
-                    name: user.firstName || 'User',
-                });
-                console.log(response.data.message);
-            } catch (error) {
-                console.error('Error registering user:', error);
-            }
-        };const contextValue = {
-            input,
-            setInput,
-            conversation,
-            loading,
-            showInitialContent,
-            setShowInitialContent,
-            onSent,
-            startNewChat,
-            uploadDocument,
-            documentUploaded,
-            uploadedDocumentName,
-            setUploadedDocumentName,
-            darkMode,
-            setDarkMode,
-            uploadImage,
-            selectedImage,
-            registerUser,
-            contextSummary,
-            aiPreferences,
-            setAIPreferences,
-
         };
-    
-        return (
-            <Context.Provider value={contextValue}>
-                {children}
-            </Context.Provider>
-        );
+        
+    const getLanguageDistribution = (data) => {
+            return data.reduce((acc, item) => {
+                acc[item.language] = (acc[item.language] || 0) + 1;
+                return acc;
+            }, {});
+        };
+
+    const getDailyUsage = (data) => {
+        const dailyUsage = {};
+        data.forEach(item => {
+            const date = new Date(item.created_at).toISOString().split('T')[0];
+            dailyUsage[date] = (dailyUsage[date] || 0) + 1;
+        });
+        return Object.entries(dailyUsage).map(([date, queries]) => ({ date, queries }));
     };
     
-    export default ContextProvider;
+    const getMostFrequent = (arr) => {
+        return arr.sort((a,b) =>
+            arr.filter(v => v===a).length - arr.filter(v => v===b).length
+        ).pop();
+    };
+
+    const contextValue = {
+        input,
+        setInput,
+        conversation,
+        loading,
+        showInitialContent,
+        setShowInitialContent,
+        onSent,
+        startNewChat,
+        uploadDocument,
+        documentUploaded,
+        uploadedDocumentName,
+        setUploadedDocumentName,
+        darkMode,
+        setDarkMode,
+        uploadImage,
+        selectedImage,
+        contextSummary,
+        aiPreferences,
+        setAIPreferences,
+        error,
+        setError,
+        analytics,
+        getAnalytics,
+        user,
+        registerUser
+    };
+
+    return (
+        <Context.Provider value={contextValue}>
+            {children}
+        </Context.Provider>
+    );
+};
+
+export default ContextProvider;
