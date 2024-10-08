@@ -51,22 +51,111 @@ export const ContextProvider = ({ children }) => {
         };
     }, [currentSession]);
 
+    const getBrowserInfo = () => {
+        const ua = navigator.userAgent;
+        let browserName = "Unknown";
+        let browserVersion = "Unknown";
+
+        if (ua.indexOf("Firefox") > -1) {
+            browserName = "Firefox";
+            browserVersion = ua.match(/Firefox\/(\d+\.\d+)/)[1];
+        } else if (ua.indexOf("Chrome") > -1) {
+            browserName = "Chrome";
+            browserVersion = ua.match(/Chrome\/(\d+\.\d+)/)[1];
+        } else if (ua.indexOf("Safari") > -1) {
+            browserName = "Safari";
+            browserVersion = ua.match(/Version\/(\d+\.\d+)/)[1];
+        } else if (ua.indexOf("MSIE") > -1 || ua.indexOf("Trident/") > -1) {
+            browserName = "Internet Explorer";
+            browserVersion = ua.match(/(?:MSIE |rv:)(\d+\.\d+)/)[1];
+        }
+
+        return `${browserName} ${browserVersion}`;
+    };
+
+    const getOSInfo = () => {
+        const ua = navigator.userAgent;
+        let osName = "Unknown";
+        let osVersion = "Unknown";
+
+        if (ua.indexOf("Win") > -1) {
+            osName = "Windows";
+        } else if (ua.indexOf("Mac") > -1) {
+            osName = "MacOS";
+        } else if (ua.indexOf("Linux") > -1) {
+            osName = "Linux";
+        } else if (ua.indexOf("Android") > -1) {
+            osName = "Android";
+        } else if (ua.indexOf("iOS") > -1) {
+            osName = "iOS";
+        }
+
+        return `${osName} ${osVersion}`;
+    };
+
+    const getIPAddress = async () => {
+        try {
+            const response = await axios.get('https://api.ipify.org?format=json');
+            return response.data.ip;
+        } catch (error) {
+            console.error('Error fetching IP address:', error);
+            return 'Unknown';
+        }
+    };
+
     const logSessionStart = async (session) => {
         if (!user) return;
         try {
-            const { data, error } = await supabase
-                .from('user_sessions')
-                .insert([
-                    {
-                        user_id: user.id,
-                        session_id: session.id,
-                        start_time: new Date().toISOString(),
-                        device_info: navigator.userAgent
-                    }
-                ]);
+            const browserInfo = getBrowserInfo();
+            const osInfo = getOSInfo();
+            const ipAddress = await getIPAddress();
 
-            if (error) throw error;
-            console.log('Session start logged successfully:', data);
+            const { data: existingSession, error: queryError } = await supabase
+                .from('user_sessions')
+                .select('*')
+                .eq('session_id', session.id)
+                .single();
+
+            if (queryError && queryError.code !== 'PGRST116') {
+                throw queryError;
+            }
+
+            const currentTime = new Date().toISOString();
+
+            if (existingSession) {
+                const { data, error } = await supabase
+                    .from('user_sessions')
+                    .update({ 
+                        last_active: currentTime,
+                        login_count: existingSession.login_count + 1,
+                        device_info: navigator.userAgent,
+                        browser_info: browserInfo,
+                        os_info: osInfo,
+                        ip_address: ipAddress
+                    })
+                    .eq('session_id', session.id);
+
+                if (error) throw error;
+                console.log('Session updated successfully:', data);
+            } else {
+                const { data, error } = await supabase
+                    .from('user_sessions')
+                    .insert([
+                        {
+                            user_id: user.id,
+                            session_id: session.id,
+                            start_time: currentTime,
+                            last_active: currentTime,
+                            device_info: navigator.userAgent,
+                            browser_info: browserInfo,
+                            os_info: osInfo,
+                            ip_address: ipAddress
+                        }
+                    ]);
+
+                if (error) throw error;
+                console.log('New session logged successfully:', data);
+            }
         } catch (error) {
             console.error('Error logging session start:', error);
         }
@@ -74,10 +163,27 @@ export const ContextProvider = ({ children }) => {
 
     const logSessionEnd = async (session) => {
         try {
+            const endTime = new Date().toISOString();
+            const { data: existingSession, error: queryError } = await supabase
+                .from('user_sessions')
+                .select('start_time, total_duration')
+                .eq('session_id', session.id)
+                .single();
+
+            if (queryError) throw queryError;
+
+            const sessionDuration = new Date(endTime) - new Date(existingSession.start_time);
+            const totalDuration = existingSession.total_duration 
+                ? new Date(existingSession.total_duration).getTime() + sessionDuration
+                : sessionDuration;
+
             const { data, error } = await supabase
                 .from('user_sessions')
-                .update({ end_time: new Date().toISOString() })
-                .match({ session_id: session.id });
+                .update({ 
+                    end_time: endTime,
+                    total_duration: new Date(totalDuration).toISOString()
+                })
+                .eq('session_id', session.id);
 
             if (error) throw error;
             console.log('Session end logged successfully:', data);
@@ -93,7 +199,15 @@ export const ContextProvider = ({ children }) => {
         }
 
         try {
-            const { data, error } = await supabase
+            const { data: sessionData, error: sessionError } = await supabase
+                .from('user_sessions')
+                .select('interactions_count')
+                .eq('session_id', currentSession.id)
+                .single();
+
+            if (sessionError) throw sessionError;
+
+            const { data: interactionData, error: interactionError } = await supabase
                 .from('ai_interactions')
                 .insert([
                     { 
@@ -108,7 +222,17 @@ export const ContextProvider = ({ children }) => {
                     }
                 ]);
 
-            if (error) throw error;
+            if (interactionError) throw interactionError;
+
+            const { data: updatedSessionData, error: updateError } = await supabase
+                .from('user_sessions')
+                .update({ 
+                    interactions_count: (sessionData.interactions_count || 0) + 1,
+                    last_active: new Date().toISOString()
+                })
+                .eq('session_id', currentSession.id);
+
+            if (updateError) throw updateError;
 
             setAnalytics(prev => ({
                 ...prev,
@@ -116,12 +240,11 @@ export const ContextProvider = ({ children }) => {
                 [interactionType + 'Queries']: (prev[interactionType + 'Queries'] || 0) + 1
             }));
 
-            console.log('Interaction logged successfully:', data);
+            console.log('Interaction logged successfully:', interactionData);
         } catch (error) {
             console.error('Error logging interaction:', error);
         }
     };
-
     const formatResponse = (response) => {
         const parts = response.split('\n');
         return parts.map((part, index) => {
@@ -282,7 +405,7 @@ export const ContextProvider = ({ children }) => {
             console.error('Error registering user:', error);
         }
     };
-
+    
     const getAnalytics = async () => {
         try {
             const { data: interactions, error: interactionsError } = await supabase
@@ -322,7 +445,10 @@ export const ContextProvider = ({ children }) => {
                     total: sessions.length,
                     activeSessions: sessions.filter(s => !s.end_time).length,
                     avgSessionDuration: calculateAvgSessionDuration(sessions),
-                    deviceDistribution: getDeviceDistribution(sessions)
+                    deviceDistribution: getDeviceDistribution(sessions),
+                    browserDistribution: getBrowserDistribution(sessions),
+                    osDistribution: getOSDistribution(sessions),
+                    avgInteractionsPerSession: sessions.reduce((sum, s) => sum + (s.interactions_count || 0), 0) / sessions.length
                 }
             };
 
@@ -370,6 +496,22 @@ export const ContextProvider = ({ children }) => {
         return 'Desktop';
     };
 
+    const getBrowserDistribution = (sessions) => {
+        return sessions.reduce((acc, session) => {
+            const browser = session.browser_info.split(' ')[0];
+            acc[browser] = (acc[browser] || 0) + 1;
+            return acc;
+        }, {});
+    };
+
+    const getOSDistribution = (sessions) => {
+        return sessions.reduce((acc, session) => {
+            const os = session.os_info.split(' ')[0];
+            acc[os] = (acc[os] || 0) + 1;
+            return acc;
+        }, {});
+    };
+
     const contextValue = {
         input,
         setInput,
@@ -395,9 +537,9 @@ export const ContextProvider = ({ children }) => {
         analytics,
         getAnalytics,
         user,
-        registerUser,
         currentSession,
-        logSessionEnd
+        logSessionEnd,
+        registerUser
     };
 
     return (
