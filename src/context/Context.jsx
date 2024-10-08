@@ -1,27 +1,19 @@
 import React, { createContext, useState, useCallback, useEffect } from "react";
 import axios from 'axios';
 import { createClient } from '@supabase/supabase-js';
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useSession } from "@clerk/clerk-react";
 
 export const Context = createContext();
 
 const FASTAPI_URL = 'http://localhost:5000/api';
 const NODE_API_URL ='https://qeskya3aqk.execute-api.us-east-1.amazonaws.com/production';
 
-// const supabase = createClient(
-//   "https://ystrincjuzlkryojxoxe.supabase.co",
-//   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzdHJpbmNqdXpsa3J5b2p4b3hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM2MjY2NDgsImV4cCI6MjAzOTIwMjY0OH0.RXbDQZZDDGsUw76O6X93V36-K1qRIhDwWKQBWUj6_uc",
-//   {
-//     auth: {
-//       persistSession: true
-//     }
-//   }
-// );
 const supabase = createClient("https://ystrincjuzlkryojxoxe.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzdHJpbmNqdXpsa3J5b2p4b3hlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM2MjY2NDgsImV4cCI6MjAzOTIwMjY0OH0.RXbDQZZDDGsUw76O6X93V36-K1qRIhDwWKQBWUj6_uc");
-
 
 export const ContextProvider = ({ children }) => {
     const { user } = useUser();
+    const { session } = useSession();
+    const [currentSession, setCurrentSession] = useState(null);
     const [input, setInput] = useState("");
     const [conversation, setConversation] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -43,12 +35,63 @@ export const ContextProvider = ({ children }) => {
     useEffect(() => {
         document.body.classList.toggle('dark-mode', darkMode);
     }, [darkMode]);
+
+    useEffect(() => {
+        if (session) {
+            setCurrentSession(session);
+            logSessionStart(session);
+        }
+    }, [session]);
+
+    useEffect(() => {
+        return () => {
+            if (currentSession) {
+                logSessionEnd(currentSession);
+            }
+        };
+    }, [currentSession]);
+
+    const logSessionStart = async (session) => {
+        if (!user) return;
+        try {
+            const { data, error } = await supabase
+                .from('user_sessions')
+                .insert([
+                    {
+                        user_id: user.id,
+                        session_id: session.id,
+                        start_time: new Date().toISOString(),
+                        device_info: navigator.userAgent
+                    }
+                ]);
+
+            if (error) throw error;
+            console.log('Session start logged successfully:', data);
+        } catch (error) {
+            console.error('Error logging session start:', error);
+        }
+    };
+
+    const logSessionEnd = async (session) => {
+        try {
+            const { data, error } = await supabase
+                .from('user_sessions')
+                .update({ end_time: new Date().toISOString() })
+                .match({ session_id: session.id });
+
+            if (error) throw error;
+            console.log('Session end logged successfully:', data);
+        } catch (error) {
+            console.error('Error logging session end:', error);
+        }
+    };
+
     const logInteraction = async (interactionType, details) => {
-        if (!user) {
-            console.log("No user logged in, skipping interaction logging");
+        if (!user || !currentSession) {
+            console.log("No user logged in or no active session, skipping interaction logging");
             return;
         }
-    
+
         try {
             const { data, error } = await supabase
                 .from('ai_interactions')
@@ -56,24 +99,23 @@ export const ContextProvider = ({ children }) => {
                     { 
                         type: interactionType, 
                         details: details,
-                        user_id: user?.id || 'anonymous',
+                        user_id: user.id,
+                        session_id: currentSession.id,
                         response_time: details.responseTime,
                         tokens_used: details.tokensUsed,
-                        // ai_model: details.aiModel,
                         interaction_id: details.interactionId,
                         language: details.language
                     }
                 ]);
-    
+
             if (error) throw error;
-    
-            // Update analytics
+
             setAnalytics(prev => ({
                 ...prev,
                 totalQueries: prev.totalQueries + 1,
                 [interactionType + 'Queries']: (prev[interactionType + 'Queries'] || 0) + 1
             }));
-    
+
             console.log('Interaction logged successfully:', data);
         } catch (error) {
             console.error('Error logging interaction:', error);
@@ -137,8 +179,7 @@ export const ContextProvider = ({ children }) => {
     
                 if (response.data && response.data.response) {
                     const formattedResponse = formatResponse(response.data.response);
-                    // print(for)
-                    console.log(formattedResponse)
+                    console.log(formattedResponse);
     
                     setConversation(prev => [
                         ...prev.slice(0, -1),
@@ -155,7 +196,6 @@ export const ContextProvider = ({ children }) => {
                         response: formattedResponse,
                         responseTime: response.data.response_time,
                         tokensUsed: response.data.tokens_used,
-                        // aiModel: response.data.ai_model,
                         interactionId: response.data.interaction_id,
                         language: response.data.language
                     });
@@ -175,7 +215,7 @@ export const ContextProvider = ({ children }) => {
                 setSelectedImage(null);
             }
         }
-    }, [input, selectedImage, documentUploaded, user]);
+    }, [input, selectedImage, documentUploaded, user, currentSession]);
 
     const startNewChat = useCallback(() => {
         setConversation([]);
@@ -240,56 +280,65 @@ export const ContextProvider = ({ children }) => {
             console.log(response.data.message);
         } catch (error) {
             console.error('Error registering user:', error);
-        }};
-    
-
-
+        }
+    };
 
     const getAnalytics = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('ai_interactions')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-        
-                if (error) throw error;
-        
-                const now = new Date();
-                const last24Hours = new Date(now - 24 * 60 * 60 * 1000);
-                const last7Days = new Date(now - 7 * 24 * 60 * 60 * 1000);
-        
-                const analytics = {
-                    total: data.length,
-                    last24Hours: data.filter(item => new Date(item.created_at) > last24Hours).length,
-                    last7Days: data.filter(item => new Date(item.created_at) > last7Days).length,
-                    uniqueUsers: new Set(data.map(item => item.user_id)).size,
-                    avgResponseTime: data.reduce((sum, item) => sum + (item.response_time || 0), 0) / data.length,
-                    byType: data.reduce((acc, item) => {
-                        acc[item.type] = (acc[item.type] || 0) + 1;
-                        return acc;
-                    }, {}),
-                    dailyUsage: getDailyUsage(data),
-                    detailed: {
-                        totalTokensUsed: data.reduce((sum, item) => sum + (item.tokens_used || 0), 0),
-                        // mostUsedModel: getMostFrequent(data.map(item => item.ai_model)),
-                        avgTokensPerQuery: data.reduce((sum, item) => sum + (item.tokens_used || 0), 0) / data.length,
-                        languageDistribution: getLanguageDistribution(data)
-                    }
-                };
-        
-                return analytics;
-            } catch (error) {
-                console.error('Error fetching analytics:', error);
-                throw new Error('Failed to fetch analytics. Please try again.');
-            }
-        };
-        
+        try {
+            const { data: interactions, error: interactionsError } = await supabase
+                .from('ai_interactions')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            const { data: sessions, error: sessionsError } = await supabase
+                .from('user_sessions')
+                .select('*')
+                .order('start_time', { ascending: false });
+
+            if (interactionsError) throw interactionsError;
+            if (sessionsError) throw sessionsError;
+
+            const now = new Date();
+            const last24Hours = new Date(now - 24 * 60 * 60 * 1000);
+            const last7Days = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+            const analytics = {
+                total: interactions.length,
+                last24Hours: interactions.filter(item => new Date(item.created_at) > last24Hours).length,
+                last7Days: interactions.filter(item => new Date(item.created_at) > last7Days).length,
+                uniqueUsers: new Set(interactions.map(item => item.user_id)).size,
+                avgResponseTime: interactions.reduce((sum, item) => sum + (item.response_time || 0), 0) / interactions.length,
+                byType: interactions.reduce((acc, item) => {
+                    acc[item.type] = (acc[item.type] || 0) + 1;
+                    return acc;
+                }, {}),
+                dailyUsage: getDailyUsage(interactions),
+                detailed: {
+                    totalTokensUsed: interactions.reduce((sum, item) => sum + (item.tokens_used || 0), 0),
+                    avgTokensPerQuery: interactions.reduce((sum, item) => sum + (item.tokens_used || 0), 0) / interactions.length,
+                    languageDistribution: getLanguageDistribution(interactions)
+                },
+                sessions: {
+                    total: sessions.length,
+                    activeSessions: sessions.filter(s => !s.end_time).length,
+                    avgSessionDuration: calculateAvgSessionDuration(sessions),
+                    deviceDistribution: getDeviceDistribution(sessions)
+                }
+            };
+
+            return analytics;
+        } catch (error) {
+            console.error('Error fetching analytics:', error);
+            throw new Error('Failed to fetch analytics. Please try again.');
+        }
+    };
+
     const getLanguageDistribution = (data) => {
-            return data.reduce((acc, item) => {
-                acc[item.language] = (acc[item.language] || 0) + 1;
-                return acc;
-            }, {});
-        };
+        return data.reduce((acc, item) => {
+            acc[item.language] = (acc[item.language] || 0) + 1;
+            return acc;
+        }, {});
+    };
 
     const getDailyUsage = (data) => {
         const dailyUsage = {};
@@ -299,11 +348,26 @@ export const ContextProvider = ({ children }) => {
         });
         return Object.entries(dailyUsage).map(([date, queries]) => ({ date, queries }));
     };
-    
-    const getMostFrequent = (arr) => {
-        return arr.sort((a,b) =>
-            arr.filter(v => v===a).length - arr.filter(v => v===b).length
-        ).pop();
+    const calculateAvgSessionDuration = (sessions) => {
+        const completedSessions = sessions.filter(s => s.end_time);
+        const totalDuration = completedSessions.reduce((sum, session) => {
+            return sum + (new Date(session.end_time) - new Date(session.start_time));
+        }, 0);
+        return completedSessions.length > 0 ? totalDuration / completedSessions.length : 0;
+    };
+
+    const getDeviceDistribution = (sessions) => {
+        return sessions.reduce((acc, session) => {
+            const device = getDeviceType(session.device_info);
+            acc[device] = (acc[device] || 0) + 1;
+            return acc;
+        }, {});
+    };
+
+    const getDeviceType = (userAgent) => {
+        if (/mobile/i.test(userAgent)) return 'Mobile';
+        if (/tablet/i.test(userAgent)) return 'Tablet';
+        return 'Desktop';
     };
 
     const contextValue = {
@@ -331,7 +395,9 @@ export const ContextProvider = ({ children }) => {
         analytics,
         getAnalytics,
         user,
-        registerUser
+        registerUser,
+        currentSession,
+        logSessionEnd
     };
 
     return (
