@@ -33,118 +33,121 @@ function Sidebar() {
   };
 
   return (
-    <motion.div 
-      className={`sidebar ${darkMode ? 'dark-mode' : ''} ${isCollapsed ? 'collapsed' : ''}`}
-      initial="expanded"
-      animate={isCollapsed ? "collapsed" : "expanded"}
-      variants={sidebarVariants}
-    >
-      <div className="top">
-        <motion.img 
-          className='menu' 
-          src={assets.menu_icon} 
-          alt='Menu'
-          onClick={toggleSidebar}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-        />
-      </div>
-      <div className="content">
-        <motion.div 
-          className="new-chat" 
-          onClick={handleNewChat}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <img src={assets.plus_icon} alt='New Chat' />
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                New Chat
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </motion.div>
-        <div className="recent">
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.p 
-                className="recent-title"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                Recent
-              </motion.p>
-            )}
-          </AnimatePresence>
-          {Array.isArray(conversation) && conversation.map((exchange, index) => (
-            <motion.div 
-              key={index} 
-              className="recent-item"
-              whileHover={{ backgroundColor: darkMode ? '#3a3a3a' : '#f0f0f0' }}
-            >
-              <img src={assets.message_icon} alt="Message" />
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {getPromptPreview(exchange)}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          ))}
+    <>
+      <motion.div 
+        className={`sidebar ${darkMode ? 'dark-mode' : ''} ${isCollapsed ? 'collapsed' : ''}`}
+        initial="expanded"
+        animate={isCollapsed ? "collapsed" : "expanded"}
+        variants={sidebarVariants}
+      >
+        <div className="top">
+          <motion.img 
+            className='menu' 
+            src={assets.menu_icon} 
+            alt='Menu'
+            onClick={toggleSidebar}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+          />
         </div>
-      </div>
-      <div className='bottom'>
-        <motion.div 
-          className="bottom-item recent-entry" 
-          onClick={() => setShowHelp(true)}
-          whileHover={{ backgroundColor: darkMode ? '#3a3a3a' : '#f0f0f0' }}
-        >
-          <img src={assets.question_icon} alt='Help' />
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+        <div className="content">
+          <motion.div 
+            className="new-chat" 
+            onClick={handleNewChat}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <img src={assets.plus_icon} alt='New Chat' />
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  New Chat
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </motion.div>
+          <div className="recent">
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.p 
+                  className="recent-title"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Recent
+                </motion.p>
+              )}
+            </AnimatePresence>
+            {Array.isArray(conversation) && conversation.map((exchange, index) => (
+              <motion.div 
+                key={index} 
+                className="recent-item"
+                whileHover={{ backgroundColor: darkMode ? '#3a3a3a' : '#f0f0f0' }}
               >
-                Help
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </motion.div>
-        <motion.div 
-          className="bottom-item recent-entry" 
-          onClick={() => setShowSettings(true)}
-          whileHover={{ backgroundColor: darkMode ? '#3a3a3a' : '#f0f0f0' }}
-        >
-          <img src={assets.setting_icon} alt='Settings' />
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                Settings
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
+                <img src={assets.message_icon} alt="Message" />
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      {getPromptPreview(exchange)}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+        <div className='bottom'>
+          <motion.div 
+            className="bottom-item recent-entry" 
+            onClick={() => setShowHelp(true)}
+            whileHover={{ backgroundColor: darkMode ? '#3a3a3a' : '#f0f0f0' }}
+          >
+            <img src={assets.question_icon} alt='Help' />
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Help
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </motion.div>
+          <motion.div 
+            className="bottom-item recent-entry" 
+            onClick={() => setShowSettings(true)}
+            whileHover={{ backgroundColor: darkMode ? '#3a3a3a' : '#f0f0f0' }}
+          >
+            <img src={assets.setting_icon} alt='Settings' />
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Settings
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      </motion.div>
+      
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
-      {showHelp && <Help onClose={() => setShowHelp(false)} />}
-    </motion.div>
+      <Help isOpen={showHelp} onClose={() => setShowHelp(false)} />
+    </>
   );
 }
 

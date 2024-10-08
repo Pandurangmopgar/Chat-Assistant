@@ -4,7 +4,7 @@ import { Context } from '../../context/Context';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
-import { Loader2, Users, MessageSquare, Image, FileText, Zap, Globe, TrendingUp, Clock, Smartphone, Monitor, Settings } from "lucide-react";
+import { Loader2, Users, MessageSquare, Image, FileText, Zap, Globe, TrendingUp, Clock, Smartphone, Monitor, Settings, FileText as FileTextIcon } from "lucide-react";
 
 const UserAnalytics = () => {
     const { getAnalytics, error, setError, user, currentSession } = useContext(Context);
@@ -133,6 +133,45 @@ const UserAnalytics = () => {
         </Card>
     );
 
+    const renderDetailedAnalytics = () => (
+        <Card className="bg-white shadow-lg rounded-lg overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-green-400 to-green-600">
+                <CardTitle className="flex items-center text-white">
+                    <FileTextIcon className="w-6 h-6 mr-2" />
+                    Detailed Analytics
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+                <table className="w-full">
+                    <thead>
+                        <tr>
+                            <th className="text-left">Metric</th>
+                            <th className="text-right">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Total Tokens Used</td>
+                            <td className="text-right">{analytics.detailed?.totalTokensUsed || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td>Avg. Tokens Per Query</td>
+                            <td className="text-right">{analytics.detailed?.avgTokensPerQuery?.toFixed(2) || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td>Language Distribution</td>
+                            <td className="text-right">
+                                {Object.entries(analytics.detailed?.languageDistribution || {}).map(([lang, count]) => (
+                                    <div key={lang}>{lang}: {count}</div>
+                                ))}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </CardContent>
+        </Card>
+    );
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-8">
             <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">User Analytics Dashboard</h1>
@@ -143,6 +182,7 @@ const UserAnalytics = () => {
                     <TabsTrigger value="language" className="px-4 py-2 text-lg">Language Distribution</TabsTrigger>
                     <TabsTrigger value="devices" className="px-4 py-2 text-lg">Devices & Browsers</TabsTrigger>
                     <TabsTrigger value="sessions" className="px-4 py-2 text-lg">Session Info</TabsTrigger>
+                    <TabsTrigger value="detailed" className="px-4 py-2 text-lg">Detailed Analytics</TabsTrigger>
                 </TabsList>
                 <AnimatePresence mode="wait">
                     <motion.div
@@ -241,6 +281,9 @@ const UserAnalytics = () => {
                                     </CardContent>
                                 </Card>
                             </div>
+                        </TabsContent>
+                        <TabsContent value="detailed" className="mt-4">
+                            {renderDetailedAnalytics()}
                         </TabsContent>
                     </motion.div>
                 </AnimatePresence>
