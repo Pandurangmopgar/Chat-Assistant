@@ -1,22 +1,40 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FiUpload, FiUsers, FiSettings, FiSearch, FiBarChart2, FiAlertCircle } from 'react-icons/fi';
+import { FiUpload, FiUsers, FiSearch, FiBarChart2, FiAlertCircle } from 'react-icons/fi';
 import { useUser } from "@clerk/clerk-react";
+import { Context } from '../../context/Context';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user } = useUser();
+  const { getAnalytics } = useContext(Context);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState(null);
 
   useEffect(() => {
     if (user && user.primaryEmailAddress) {
       setIsAuthorized(user.primaryEmailAddress.emailAddress === 'pandurangmopgar7410@gmail.com');
     }
   }, [user]);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const data = await getAnalytics();
+        setAnalyticsData(data);
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      }
+    };
+
+    if (isAuthorized) {
+      fetchAnalytics();
+    }
+  }, [isAuthorized, getAnalytics]);
 
   const adminFunctions = [
     { name: 'Document Upload', icon: <FiUpload className="w-6 h-6" />, path: '/admin/upload-document', description: 'Upload and manage documents' },
@@ -113,19 +131,19 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-300">Total Users</p>
-                  <p className="text-2xl font-bold">1,234</p>
+                  <p className="text-2xl font-bold">{analyticsData?.uniqueUsers || 'Loading...'}</p>
                 </div>
                 <div>
                   <p className="text-gray-300">Active Sessions</p>
-                  <p className="text-2xl font-bold">56</p>
+                  <p className="text-2xl font-bold">{analyticsData?.sessions?.activeSessions || 'Loading...'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-300">Documents Uploaded</p>
-                  <p className="text-2xl font-bold">789</p>
+                  <p className="text-gray-300">Total Queries</p>
+                  <p className="text-2xl font-bold">{analyticsData?.total || 'Loading...'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-300">System Health</p>
-                  <p className="text-2xl font-bold text-green-400">98%</p>
+                  <p className="text-gray-300">Avg. Response Time</p>
+                  <p className="text-2xl font-bold">{analyticsData?.avgResponseTime ? `${analyticsData.avgResponseTime.toFixed(2)}s` : 'Loading...'}</p>
                 </div>
               </div>
             </CardContent>

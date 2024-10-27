@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useEffect } from 'react';
+import React, { useContext, useRef, useEffect, useState } from 'react';
 import './Main.css';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 import { assets } from '../../assets/assets';
@@ -10,6 +10,7 @@ const Mainn = () => {
     input, 
     setInput, 
     conversation, 
+    setConversation,
     loading, 
     showInitialContent, 
     onSent, 
@@ -19,12 +20,13 @@ const Mainn = () => {
     setDarkMode,
     selectedImage,
     uploadImage,
-    registerUser  // Add this line to get registerUser from context
+    registerUser
   } = useContext(Context);
   const { user, isSignedIn } = useUser();
   const fileInputRef = useRef(null);
   const conversationEndRef = useRef(null);
   const imageInputRef = useRef(null);
+  const [streamingResponse, setStreamingResponse] = useState('');
 
   const cardData = [
     { text: "What are the steps to apply for casual leave?", icon: <FiCalendar /> },
@@ -38,15 +40,39 @@ const Mainn = () => {
       registerUser(user);
     }
   }, [isSignedIn, user, registerUser]);
-
- 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (input.trim()) {
-      await onSent();
+      setStreamingResponse('');
+      await onSent(input.trim(), handleStreamingResponse);
     }
   };
+  
+  const handleStreamingResponse = (chunk) => {
+    setStreamingResponse(prev => prev + chunk);
+  };
+  
+  useEffect(() => {
+    if (streamingResponse) {
+      setConversation(prev => {
+        const updatedConversation = [...prev];
+        const lastIndex = updatedConversation.length - 1;
+        
+        if (lastIndex === -1 || updatedConversation[lastIndex].input !== input.trim()) {
+          // Add a new entry only if it's the first message or if the last input is different
+          updatedConversation.push({ input: input.trim(), response: streamingResponse });
+        } else {
+          // Update the existing entry
+          updatedConversation[lastIndex] = {
+            ...updatedConversation[lastIndex],
+            response: streamingResponse
+          };
+        }
+        
+        return updatedConversation;
+      });
+    }
+  }, [streamingResponse, input]);
 
   const getUserInitials = () => {
     if (user?.firstName && user?.lastName) {
@@ -59,8 +85,6 @@ const Mainn = () => {
     }
     return 'U';
   };
-  console.log(user?.id || 'anonymous')
-  console.log(typeof user?.id)
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -70,7 +94,6 @@ const Mainn = () => {
         console.log('File uploaded successfully');
       } catch (error) {
         console.error('Error uploading file:', error);
-        // TODO: Add user-facing error message
       }
     }
   };
@@ -86,7 +109,7 @@ const Mainn = () => {
     if (conversationEndRef.current) {
       conversationEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [conversation]);
+  }, [conversation, streamingResponse]);
 
   return (
     <div className={`main ${darkMode ? 'dark-mode' : ''}`}>
@@ -144,17 +167,17 @@ const Mainn = () => {
                       <div className="message-text">{exchange.input}</div>
                     </div>
                   </div>
-                  {exchange.response && (
+                  {(exchange.response || index === conversation.length - 1) && (
                     <div className="assistant-message-container">
                       <div 
                         className="assistant-message"
-                        dangerouslySetInnerHTML={{ __html: exchange.response }}
+                        dangerouslySetInnerHTML={{ __html: exchange.response || streamingResponse }}
                       />
                     </div>
                   )}
                 </div>
               ))}
-              {loading && <div className="loading">Loading...</div>}
+              {loading && <div className="loading">Thinking...</div>}
               <div ref={conversationEndRef} />
             </div>
           </div>
